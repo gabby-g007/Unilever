@@ -1,0 +1,355 @@
+<command>
+  <name>write inventory status change host transaction</name>
+  <description>Write Inventory Status Change Host Transaction</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+/* If the inventory that is being changed is not */
+/* within the four walls, */
+/* then don't bother sending any transactions */
+if (@exec_sts = 0 and @dtlnum != '')
+{
+    [select bldg_mst.wh_id,
+            aremst.arecod,
+            invdtl.hld_flg
+       from bldg_mst,
+            aremst,
+            locmst,
+            invlod,
+            invsub,
+            invdtl,
+            prtmst_view,
+            loc_typ				   
+      where bldg_mst.bldg_id = aremst.bldg_id
+        and bldg_mst.wh_id = aremst.wh_id
+        and aremst.wh_id = locmst.wh_id
+        and aremst.arecod = locmst.arecod
+        and locmst.wh_id = invlod.wh_id
+        and locmst.stoloc = invlod.stoloc
+        and invlod.lodnum = invsub.lodnum
+        and invsub.subnum = invdtl.subnum
+        and invlod.wh_id = prtmst_view.wh_id
+        and invdtl.prtnum = prtmst_view.prtnum
+        and invdtl.prt_client_id = prtmst_view.prt_client_id
+        and prtmst_view.prdflg = '1'
+		and loc_typ.fwiflg = '1'
+        and locmst.loc_typ_id = loc_typ.loc_typ_id
+        and invdtl.dtlnum = @dtlnum] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        publish data
+         where srcsts = @fr_invsts
+           and srcorg = @orgcod
+           and srcrev = @revlvl
+           and srclot = @lotnum
+           and srcsuplot = @sup_lotnum
+           and src_mandte = @mandte
+           and src_expire_dte = @expire_dte
+           and src_inv_attr_str1 = @inv_attr_str1
+           and src_inv_attr_str2 = @inv_attr_str2
+           and src_inv_attr_str3 = @inv_attr_str3
+           and src_inv_attr_str4 = @inv_attr_str4
+           and src_inv_attr_str5 = @inv_attr_str5
+           and src_inv_attr_str6 = @inv_attr_str6
+           and src_inv_attr_str7 = @inv_attr_str7
+           and src_inv_attr_str8 = @inv_attr_str8
+           and src_inv_attr_str9 = @inv_attr_str9
+           and src_inv_attr_str10 = @inv_attr_str10
+           and src_inv_attr_str11 = @inv_attr_str11
+           and src_inv_attr_str12 = @inv_attr_str12
+           and src_inv_attr_str13 = @inv_attr_str13
+           and src_inv_attr_str14 = @inv_attr_str14
+           and src_inv_attr_str15 = @inv_attr_str15
+           and src_inv_attr_str16 = @inv_attr_str16
+           and src_inv_attr_str17 = @inv_attr_str17
+           and src_inv_attr_str18 = @inv_attr_str18
+           and src_inv_attr_int1 = @inv_attr_int1
+           and src_inv_attr_int2 = @inv_attr_int2
+           and src_inv_attr_int3 = @inv_attr_int3
+           and src_inv_attr_int4 = @inv_attr_int4
+           and src_inv_attr_int5 = @inv_attr_int5
+           and src_inv_attr_flt1 = @inv_attr_flt1
+           and src_inv_attr_flt2 = @inv_attr_flt2
+           and src_inv_attr_flt3 = @inv_attr_flt3
+           and src_inv_attr_dte1 = @inv_attr_dte1
+           and src_inv_attr_dte2 = @inv_attr_dte2
+           and dststs = @to_invsts
+           and dstorg = @orgcod
+           and dstrev = @revlvl
+           and dstlot = @lotnum
+           and dstsuplot = @sup_lotnum
+           and dst_mandte = @mandte
+           and dst_expire_dte = @expire_dte
+           and dst_inv_attr_str1 = @inv_attr_str1
+           and dst_inv_attr_str2 = @inv_attr_str2
+           and dst_inv_attr_str3 = @inv_attr_str3
+           and dst_inv_attr_str4 = @inv_attr_str4
+           and dst_inv_attr_str5 = @inv_attr_str5
+           and dst_inv_attr_str6 = @inv_attr_str6
+           and dst_inv_attr_str7 = @inv_attr_str7
+           and dst_inv_attr_str8 = @inv_attr_str8
+           and dst_inv_attr_str9 = @inv_attr_str9
+           and dst_inv_attr_str10 = @inv_attr_str10
+           and dst_inv_attr_str11 = @inv_attr_str11
+           and dst_inv_attr_str12 = @inv_attr_str12
+           and dst_inv_attr_str13 = @inv_attr_str13
+           and dst_inv_attr_str14 = @inv_attr_str14
+           and dst_inv_attr_str15 = @inv_attr_str15
+           and dst_inv_attr_str16 = @inv_attr_str16
+           and dst_inv_attr_str17 = @inv_attr_str17
+           and dst_inv_attr_str18 = @inv_attr_str18
+           and dst_inv_attr_int1 = @inv_attr_int1
+           and dst_inv_attr_int2 = @inv_attr_int2
+           and dst_inv_attr_int3 = @inv_attr_int3
+           and dst_inv_attr_int4 = @inv_attr_int4
+           and dst_inv_attr_int5 = @inv_attr_int5
+           and dst_inv_attr_flt1 = @inv_attr_flt1
+           and dst_inv_attr_flt2 = @inv_attr_flt2
+           and dst_inv_attr_flt3 = @inv_attr_flt3
+           and dst_inv_attr_dte1 = @inv_attr_dte1
+           and dst_inv_attr_dte2 = @inv_attr_dte2
+           and to_lotnum = @lotnum
+           and to_sup_lotnum = @sup_lotnum
+           and to_revlvl = @revlvl
+           and to_orgcod = @orgcod
+           and to_mandte = @mandte
+           and to_expire_dte = @expire_dte
+           and to_inv_attr_str1 = @inv_attr_str1
+           and to_inv_attr_str2 = @inv_attr_str2
+           and to_inv_attr_str3 = @inv_attr_str3
+           and to_inv_attr_str4 = @inv_attr_str4
+           and to_inv_attr_str5 = @inv_attr_str5
+           and to_inv_attr_str6 = @inv_attr_str6
+           and to_inv_attr_str7 = @inv_attr_str7
+           and to_inv_attr_str8 = @inv_attr_str8
+           and to_inv_attr_str9 = @inv_attr_str9
+           and to_inv_attr_str10 = @inv_attr_str10
+           and to_inv_attr_str11 = @inv_attr_str11
+           and to_inv_attr_str12 = @inv_attr_str12
+           and to_inv_attr_str13 = @inv_attr_str13
+           and to_inv_attr_str14 = @inv_attr_str14
+           and to_inv_attr_str15 = @inv_attr_str15
+           and to_inv_attr_str16 = @inv_attr_str16
+           and to_inv_attr_str17 = @inv_attr_str17
+           and to_inv_attr_str18 = @inv_attr_str18
+           and to_inv_attr_int1 = @inv_attr_int1
+           and to_inv_attr_int2 = @inv_attr_int2
+           and to_inv_attr_int3 = @inv_attr_int3
+           and to_inv_attr_int4 = @inv_attr_int4
+           and to_inv_attr_int5 = @inv_attr_int5
+           and to_inv_attr_flt1 = @inv_attr_flt1
+           and to_inv_attr_flt2 = @inv_attr_flt2
+           and to_inv_attr_flt3 = @inv_attr_flt3
+           and to_inv_attr_dte1 = @inv_attr_dte1
+           and to_inv_attr_dte2 = @inv_attr_dte2
+           and reacod = @reacod
+           and wh_id = @wh_id
+           and hld_flg = @hld_flg
+        |
+        /* We only want to log the status change event to LENS    */
+        /* if we are not changing the status because of an add or */
+        /* a remove of a hold.  This is because currently LENS    */
+        /* doesn't have the change to utilize the hold flag.      */
+        /* Once they put in place this functionality we will have */
+        /* to change how and when we sent this to them.  For now  */
+        /* we will block it if the change came from adding or     */
+        /* removing a hold.  If the hold prefix is populated we   */
+        /* assume that the status change is in conjunction with   */
+        /* a hold                                                 */
+        if (@prc_hldpfx != '')
+        {
+            publish data
+             where result_of_hold = 1
+        }
+        else
+        {
+            publish data
+             where result_of_hold = 0
+        }
+		|
+            get session variable
+             where name = 'uc_cur_dtl' catch(-1403)
+            |
+            publish data
+             where uc_cur_dtl = nvl(@value, 0)
+            |
+			save session variable
+             where name = 'uc_cur_dtl'
+             and value = @uc_cur_dtl + 1
+			  |
+        get host transaction type
+        |
+        if (@hstsrc != '' and @hstdst != '' and @tranid != '')
+        {
+            get integrator system id
+             where systyp = 'WMD'
+            |
+            /* Command "get host transaction type" may load the policy */
+            /* and then fire the event 'INV-STS', which will transfer  */
+            /* warehouse id to the final outbound IFD.                 */
+            if (@tranid = 'INV-STS')
+            {
+                get translated warehouse ID
+            }
+            |
+            hide stack variable
+             where name = 'mode'
+            |
+            /*
+             * UNI-983: Katta, Dayakar - November 18, 2021
+             * If the policy to batch INV-STS events is enabled then we need to write the data into a custom table instead of logging
+             * the individual event
+             * If the session variable uc_cur_dtl is available and total details being changed more than 1
+             * then we are into batching the events
+             */
+			publish data
+             where value = null
+            |
+            get session variable
+             where name = 'uc_tot_dtl' catch(-1403)
+            |
+            publish data
+             where uc_tot_dtl = nvl(@value, 0)
+			 |
+			 publish data
+             where value = null
+            |
+			get session variable
+            where name = 'uc_cur_dtl' catch(-1403)
+            |
+            publish data
+             where uc_cur_dtl = nvl(@value, 0)
+			 |
+            if (@uc_tot_dtl > 1)
+            {
+			publish data
+             where value = null
+            |
+                get session variable
+                 where name = 'uc_batch_evt_key' catch(-1403)
+                |
+                publish data
+                 where uc_batch_evt_key = @value
+                |
+                {
+                    create record
+                     where table = 'uc_inv_sts_hld_info'
+                       and uc_batch_evt_key = @uc_batch_evt_key
+                       and evt_id = 'INV-STS'
+                       and wh_id = nvl(@wh_id, @@wh_id)
+                       and arecod = @arecod
+                       and stoloc = @stoloc
+                       and lodnum = @lodnum
+                       and subnum = @subnum
+                       and dtlnum = @dtlnum
+                       and prtnum = @prtnum
+                       and prt_client_id = @prt_client_id
+                       and orgcod = @orgcod
+                       and revlvl = @revlvl
+                       and lotnum = @lotnum
+                       and sup_lotnum = @sup_lotnum
+                       and supnum = @supnum
+                       and fr_invsts = @fr_invsts
+                       and to_invsts = @to_invsts
+                       and trnqty = @trnqty
+                       and hld_flg = @hld_flg
+                       and mandte = @mandte
+                       and expire_dte = @expire_dte
+                       and reacod = @reacod
+                       and trans_wh_id = nvl(@trans_wh_id, nvl(@wh_id, @@wh_id))
+                       and ins_usr_id = nvl(@usr_id, @@usr_id)
+                       and bldg_id = @bldg_id
+                       and result_of_hold = @result_of_hold;
+                       
+                       /* If the current detail count matches with total count then send batched events*/
+                       if (@uc_tot_dtl = @uc_cur_dtl)
+                       {
+                           send usr batched inventory status transactions
+                            where uc_batch_evt_key = @uc_batch_evt_key
+                       }
+                       else if (@result_of_hold != 1)
+                       {
+                           /* Increment the current detail count*/
+                           save session variable
+                            where name = 'uc_cur_dtl'
+                              and value = @uc_cur_dtl
+                       }
+                   }
+            }
+            else
+            {
+                publish data 
+				where deferred_cmd =
+                         "sl_log event " ||
+                         " where evt_id = '" || @tranid || "'"  ||
+                         "   and ifd_data_ptr = NULL " ||
+                         "   and sys_id = '" || @sys_id || "'" ||         
+                          '  and lodnum = '''||@lodnum ||''' ' ||
+                          '  and subnum = '''||@subnum ||''' ' ||
+                          '  and dtlnum = '''||@dtlnum ||''' ' ||
+                          '  and fr_orgcod = '''||@orgcod ||''' ' ||
+                          '  and fr_revlvl = '''||@revlvl ||''' ' ||
+						  '  and to_revlvl = '''||@revlvl ||''' ' ||
+                          '  and wh_id = '''||@wh_id ||''' ' ||
+                          '  and arecod = '''||@arecod ||''' ' ||
+                          '  and stoloc = '''||@stoloc ||''' ' ||
+                          '  and prtnum = '''||@prtnum ||''' ' ||
+                          '  and prt_client_id = '''||@prt_client_id ||''' ' ||
+                          '  and trnqty = '''||@trnqty ||''' ' ||
+                          '  and fr_invsts = '''||@fr_invsts ||''' ' ||
+                          '  and to_invsts = '''||@to_invsts ||''' ' ||
+                          '  and supnum = '''||@supnum ||''' ' ||
+                          '  and hstsrc = '''||@fr_invsts ||''' ' ||
+                          '  and hstdst = '''||@to_invsts ||''' '  ||
+                          '  and hld_flg = '''||@hld_flg ||''' '  ||
+                          '  and fr_lotnum = '''|| @lotnum ||''' '  ||
+                          '  and fr_sup_lotnum = '''|| @sup_lotnum ||''' ' ||
+						  '  and reacod = '''||@reacod ||''' ' ||
+				          '  and to_expire_dte = '''||@expire_dte ||''' ' ||
+				          '  and to_lotnum = '''||@lotnum ||''' ' ||
+				          '  and to_mandte = '''||@mandte ||''' ' ||
+				          '  and to_orgcod = '''||@orgcod ||''' ' ||
+                          ' and usr_id = '''|| nvl(@usr_id, @@usr_id) ||''' ' ||
+						  '  and trans_wh_id = nvl(@trans_wh_id, nvl(@wh_id, @@wh_id))'
+                |
+                create deferred execution
+                 where deferred_cmd = @deferred_cmd
+            }
+        }
+		 else
+        {
+            get session variable
+             where name = 'uc_tot_dtl' catch(-1403)
+            |
+            publish data
+             where uc_tot_dtl = nvl(@value, 0)
+            |
+            get session variable
+             where name = 'uc_cur_dtl' catch(-1403)
+            |
+            publish data
+             where uc_cur_dtl = nvl(@value, 0)
+            |
+            if (@uc_tot_dtl = @uc_cur_dtl)
+            {
+                get session variable
+                 where name = 'uc_batch_evt_key' catch(-1403)
+                |
+                publish data
+                 where uc_batch_evt_key = @value
+                |
+                send usr batched inventory status transactions
+                 where uc_batch_evt_key = @uc_batch_evt_key
+            }
+        }
+    }
+}
+]]>
+</local-syntax>
+  <documentation>
+<remarks></remarks>
+<exception value="eOK">Normal successful completion</exception>
+
+</documentation>
+</command>

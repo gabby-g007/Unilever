@@ -1,0 +1,137 @@
+<command>
+  <name>list rf pick list summary information</name>
+  <description>list rf pick list summary information</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+/* Do not pass client id
+ * as it will be null for
+ * list pick replenishments
+ */
+[select count(*) cnt0
+   from poldat
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'HIDE-LIST-SUMMARY'
+    and polval = 'ENABLE'
+    and rtnum1 = 1]
+|
+if (@cnt0 > 0)
+{
+    [select list_typ
+       from pcklst
+      where list_id = @list_id] catch(-1403)
+    |
+    if (@list_typ != 'RPL')
+    {
+        /* Replenishment Lists do not have Client ID */
+        get client in clause for user
+         where usr_id = @@usr_id
+           and table_prefix = 'pw1'
+    }
+    else
+    {
+        publish data
+         where client_in_clause = " 1 = 1 "
+    }
+    |
+    if (@wh_id is NULL)
+    {
+        list warehouses
+    }
+    |
+    [select distinct pw1.list_grp_id,
+            pcklst.list_typ,
+            pcklst.list_id,
+            pcklst.list_sts,
+            pcklst.asset_typ,
+            0 total_cubes,
+            0 total_weight,
+            pcklst.tot_ord,
+            pcklst.tot_ordlin,
+            pcklst.tot_wko,
+            pcklst.tot_wkolin,
+            pcklst.tot_ctn,
+            pw1.wh_id,
+            /* work zone (of the first pick in the list) */
+            (select zonmst.wrkzon
+               from pckwrk_hdr pw2
+               join locmst
+                 on pw2.srcloc = locmst.stoloc
+                and pw2.wh_id = locmst.wh_id
+               join zonmst
+                 on zonmst.wrk_zone_id = locmst.wrk_zone_id
+              where pw2.list_id = pcklst.list_id
+                and pw2.wh_id = pw1.wh_id
+                and @+pw2.list_id
+                and @+pw2.list_grp_id
+                and pw2.list_seqnum = (select min(pw3.list_seqnum)
+                                         from pckwrk_hdr pw3
+                                        where pw3.list_id = pcklst.list_id
+                                          and pw3.wh_id = pw1.wh_id
+                                          and @+pw3.list_id
+                                          and @+pw3.list_grp_id)
+                and pw2.appqty <> pw2.pckqty) wrkzon,
+            /* Whether does it have a directed work in the work queue */
+            decode((select count(reqnum)
+                      from wrkque
+                     where list_id = pcklst.list_id), 0, 0, 1) dirwrkflg,
+            /* the ackdevcod of the first pick that is being picked and has the min sequence */
+            (select pw4.ackdevcod
+               from pckwrk_hdr pw4
+              where pw4.list_id = pcklst.list_id
+                and pw4.wh_id = pw1.wh_id
+                and ackdevcod is not null
+                and @+pw4.list_id
+                and @+pw4.list_grp_id
+                and list_seqnum = (select min(pw5.list_seqnum)
+                                     from pckwrk_hdr pw5
+                                    where pw5.list_id = pcklst.list_id
+                                      and pw5.wh_id = pw1.wh_id
+                                      and ackdevcod is not null
+                                      and @+pw5.list_id
+                                      and @+pw5.list_grp_id)
+                and rownum <= 1) ackdevcod,
+            /* Total picks in the list */
+            0 total_picks,
+            /* Total cases in the list */
+            0 total_cases,
+            /* Total prtnum/prt_client_id in the list, including picks in kit. */
+            /* This subselect was changed to include a union instead of an OR 
+             * clause to improve performance. The union is faster and produces
+             * the same results. */
+            0 total_parts,
+            /* Return client_id from pckwrk_hdr */
+            pw1.client_id,
+            /* Other fields */
+            pcklst.adddte,
+            pcklst.cmpdte,
+            asset_typ.lst_pck_asset_flg,
+            asset_typ.max_ord,
+            asset_typ.max_ordlin,
+            asset_typ.max_wko,
+            asset_typ.max_wkolin,
+            asset_typ.max_ctn,
+            asset_typ.max_wgt,
+            asset_typ.max_vol
+       from pcklst
+       join pckwrk_hdr pw1
+         on pcklst.list_id = pw1.list_id
+       left
+       join asset_typ
+         on asset_typ.asset_typ = pcklst.asset_typ
+      where @+pcklst.list_id
+        and @+pw1.list_grp_id
+        and @+pw1.wh_id
+        and @client_in_clause:raw
+        and @*
+      order by pw1.wh_id,
+            pw1.client_id,
+            pw1.list_grp_id] catch(-1403)
+}
+else
+{
+    ^list rf pick list summary information
+}
+]]>
+</local-syntax>
+</command>

@@ -1,0 +1,50 @@
+<trigger>
+  <name>Assign_picks</name>
+  <on-command>process work ack</on-command>
+  <description>Assign picks</description>
+  <fire-sequence>1</fire-sequence>
+  <local-syntax>
+<![CDATA[
+[select 1
+   from poldat_view
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'ASSIGN-PICK-TO-ACKUSER'
+    and polval = 'ENABLED'
+    and rtnum1 = '1'
+    and wh_id = nvl(@wh_id, @@wh_id)] catch(@?)
+|
+if (@? = 0)
+{
+    [select oprcod
+       from wrkque
+      where reqnum = @reqnum] catch(-1403)
+    |
+    [select 1
+       from poldat_view
+      where polcod = 'USR-UNILEVER'
+        and polvar = 'ASSIGN-PICK-TO-ACKUSER'
+        and polval = 'OPRCOD'
+        and rtstr1 = @oprcod
+        and rtnum1 = '1'
+        and wh_id = nvl(@wh_id, @@wh_id)] catch(@?)
+    |
+    if (@? = 0)
+    {
+        [select oprcod,
+                ackdevcod,
+                ack_usr_id
+           from wrkque
+          where reqnum = @reqnum] catch(-1403)
+        |
+        if (@asg_usr_id is null)
+        {
+            change work
+             where asg_usr_id = @ack_usr_id
+               and reqnum = @reqnum
+        }
+    }
+}
+]]>
+</local-syntax>
+  <enable>yes</enable>
+</trigger>

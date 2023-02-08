@@ -1,0 +1,3 @@
+arc_nam,arc_table,list_cmd,max_rows,sts_fil,purge_flg,post_arc_cmd,action_on_dup,arc_days,date_column
+UC-APPT-ETA,UC_APPT_ETA,[select arc_days from archdr where arc_nam = 'UC-APPT-ETA']|if (dbtype = 'ORACLE'){[select uc_appt_eta.* from uc_appt_eta where ins_dt < sysdate - /*=moca_util.days(*/ @arc_days /*=)*/]}else{[select * from uc_appt_eta where ins_dt < sysdate - /*=moca_util.days(*/ @arc_days /*=)*/]},0,,0,,I,30,ins_dt
+UC-TRACEABILITY,UC_TRACEABILITY,[select arc_days from archdr where arc_nam = 'UC-TRACEABILITY']|if (dbtype = 'ORACLE'){[select uc_traceability.* from uc_traceability where insdte < sysdate - /*=moca_util.days(*/ @arc_days /*=)*/]}else{[select * from uc_traceability where insdte < sysdate - /*=moca_util.days(*/ @arc_days /*=)*/]},0,,0,,I,30,insdte

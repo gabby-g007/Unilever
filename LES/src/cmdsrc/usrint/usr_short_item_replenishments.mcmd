@@ -1,0 +1,78 @@
+<command>
+  <name>usr short item replenishments</name>
+  <description>usr short item replenishments</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+publish data 
+where filterByClause = nvl(@filterByClause, [1=1])
+|
+list warehouses
+where wh_id <> 'WMD1'
+|
+[/*#limit=@offset,@limit,true*/
+select schbat,
+		adddte,
+		cmpdte,
+		wrkref,
+		pcksts,
+		lodlvl,
+		appqty,
+		pckqty,
+		srcare,
+		srcloc,
+		prtnum,
+		ship_id,
+		ship_line_id,
+		ordnum,
+		ordlin,
+		ordsln,
+		wkonum,
+		wkorev,
+		ctnnum,
+		wrktyp,
+		dstloc,
+		ackdevcod,
+		cmbcod,
+		lblbat,
+		prtdte,
+		wh_id,
+		list_id
+   from pckwrk_view
+  where wrktyp in ('E', 'M', 'R', 'T', 'G','D')
+	and wh_id = @wh_id
+    and @filterByClause:raw
+    
+] catch(-1403)
+|
+    publish data
+     where wh_id = @wh_id 
+	   and schbat = @schbat
+       and adddte = @adddte
+       and cmpdte = @cmpdte
+       and wrkref = @wrkref
+       and pcksts = @pcksts
+       and lodlvl = @lodlvl
+       and appqty = @appqty
+       and pckqty = @pckqty
+       and srcare = @srcare
+       and srcloc = @srcloc
+       and prtnum = @prtnum
+       and ship_id = @ship_id
+       and ship_line_id = @ship_line_id
+       and ordnum = @ordnum
+       and ordlin = @ordlin
+       and ordsln = @ordsln
+       and wkonum = @wkonum
+       and wkorev = @wkorev
+       and ctnnum = @ctnnum
+       and wrktyp = @wrktyp
+       and dstloc = @dstloc
+       and ackdevcod = @ackdevcod
+       and cmbcod = @cmbcod
+       and lblbat = @lblbat
+       and prtdte = @prtdte
+       and list_id = @list_id
+]]>
+</local-syntax>
+</command>

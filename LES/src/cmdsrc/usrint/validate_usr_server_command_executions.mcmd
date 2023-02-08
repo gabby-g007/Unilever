@@ -1,0 +1,36 @@
+<command>
+  <name>validate usr server command executions</name>
+  <description>Validates If users are running any update or delete statements if so will fail</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+publish data
+ where current_cmd = @current_cmd
+   and wh_id = nvl(@wh_id, @@wh_id)
+|
+{
+    [select '%' || rtstr1 || '%' keyword,
+            rtstr1
+       from poldat_view
+      where polcod = 'USR-UNILEVER'
+        and polvar = 'SERVER-COMMAND-KEYWORDS'
+        and polval = 'RESTRICTED'
+        and wh_id = @wh_id] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        [select 'X'
+           from dual
+          where @current_cmd like @keyword] catch(-1403)
+        |
+        if (@? = 0)
+        {
+            set return status
+             where code = '99000'
+               and keyword = @rtstr1
+        }
+    }
+}
+]]>
+</local-syntax>
+</command>

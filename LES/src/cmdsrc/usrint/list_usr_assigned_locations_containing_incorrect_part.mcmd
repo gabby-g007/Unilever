@@ -1,0 +1,69 @@
+<command>
+  <name>list usr assigned locations containing incorrect part</name>
+  <description>list usr assigned locations containing incorrect part</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+if ((@loc_filter = "IN USE") or (@loc_filter = "in use"))
+{
+    publish data
+     where filterByClause = nvl(@filterByClause,
+                                [1 = 1])
+       and wh_id = nvl(@wh_id, @@wh_id)
+    |
+    [select temp.assigned_prtnum,
+            temp.assigned_prt_client_id,
+            temp.stoloc,
+            temp.wrong_prtnum,
+            temp.wrong_prt_client_id
+       from (select distinct rplcfg.prtnum assigned_prtnum,
+                    rplcfg.prt_client_id assigned_prt_client_id,
+                    rplcfg.stoloc,
+                    invsum.prtnum wrong_prtnum,
+                    invsum.prt_client_id wrong_prt_client_id
+               from invsum,
+                    rplwrk,
+                    rplcfg
+              where invsum.stoloc = rplcfg.stoloc
+                and invsum.wh_id = rplcfg.wh_id
+                and rplwrk.dstloc = rplcfg.stoloc
+                and rplwrk.wh_id = rplcfg.wh_id
+                and rplwrk.prtnum = rplcfg.prtnum
+                and rplwrk.prt_client_id = rplcfg.prt_client_id
+                and (invsum.prtnum <> rplcfg.prtnum or invsum.prt_client_id <> rplcfg.prt_client_id)
+                and @+invsum.arecod
+                and @+invsum.wh_id
+                and @*) temp
+      where @filterByClause:raw]
+}
+else
+    /* loc_filter = ALL */
+{
+    publish data
+     where filterByClause = nvl(@filterByClause,
+                                [1 = 1])
+       and wh_id = nvl(@wh_id, @@wh_id)
+    |
+    [select temp.assigned_prtnum,
+            temp.assigned_prt_client_id,
+            temp.stoloc,
+            temp.wrong_prtnum,
+            temp.wrong_prt_client_id
+       from (select distinct rplcfg.prtnum assigned_prtnum,
+                    rplcfg.prt_client_id assigned_prt_client_id,
+                    rplcfg.stoloc,
+                    invsum.prtnum wrong_prtnum,
+                    invsum.prt_client_id wrong_prt_client_id
+               from invsum,
+                    rplcfg
+              where invsum.stoloc = rplcfg.stoloc
+                and invsum.wh_id = rplcfg.wh_id
+                and (invsum.prtnum <> rplcfg.prtnum or invsum.prt_client_id <> rplcfg.prt_client_id)
+                and @+invsum.arecod
+                and @+invsum.wh_id
+                and @*) temp
+      where @filterByClause:raw]
+}
+   ]]>
+</local-syntax>
+</command>

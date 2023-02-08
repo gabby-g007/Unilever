@@ -1,0 +1,74 @@
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_def
+SL_VERSION,alg_id,alg_grp_id,alg_typ_cd,alg_descr,need_evt_flg,need_evt_arg_flg,need_next_eo_seg_flg,need_this_eo_seg_flg,var_arg_list_flg,overstack_arg_flg,always_local_flg,code,code_len
+2020.1,'CHECK_IF_CUSTOMER_EXISTS','SL_IFD_SEG_PROC','MOCA','Checks if a customer exists in the database, and adds a default one if none exists.','F','F','F','F','F','F','T','/*
+ * Determine if the customer given exists.  If not, create it with a
+ * type of DOM and use the address generated previously.
+ */
+[select rtstr1 csttyp
+   from poldat_view
+  where polcod = ''DSS-UNILEVER''
+    and polvar = ''DEFAULT-CUSTOMER''
+    and polval = ''CSTTYP''
+    and wh_id = nvl (:i_c_whse_id, nvl (:i_c_wh_id, ''----''))
+    and rtnum1 = ''1''
+    and rownum < 2] catch(-1403)
+|
+[select 1
+   from cstmst
+  where client_id = :i_c_client_id
+    and cstnum = :i_c_cstnum] catch(-1403)
+|
+if (@? = -1403)
+{
+    [select adr_id
+       from adrmst
+      where client_id = :i_c_client_id
+        and host_ext_id = :i_c_host_ext_id]
+    |
+    create customer
+     where cstnum = :i_c_cstnum
+       and client_id = :i_c_client_id
+       and mc_csttyp = nvl(@csttyp, ''DOM'')
+       and adr_id = @adr_id
+}
+else
+{
+    [select count(*) update_csttyp
+       from poldat_view
+      where polcod = ''DSS-UNILEVER''
+        and polvar = ''CHANGE-CSTTYP''
+        and polval = ''DISABLED''
+        and wh_id = nvl (:i_c_whse_id, nvl (:i_c_wh_id, ''----''))
+        and rtnum1 = ''1'']
+    |
+    if (@update_csttyp = 0)
+    {
+        [select adr_id
+           from adrmst
+          where client_id = :i_c_client_id
+            and host_ext_id = :i_c_host_ext_id]
+        |
+        change customer
+         where cstnum = :i_c_cstnum
+           and client_id = :i_c_client_id
+           and mc_csttyp = ''DOM''
+           and adr_id = @adr_id
+           and uc_integrator_call = 1
+           and wh_id = :i_c_whse_id
+    }
+    else
+    {
+        [select adr_id
+           from adrmst
+          where client_id = :i_c_client_id
+            and host_ext_id = :i_c_host_ext_id]
+        |
+        change customer
+         where cstnum = :i_c_cstnum
+           and client_id = :i_c_client_id
+           and adr_id = @adr_id
+           and uc_integrator_call = 1
+           and wh_id = :i_c_whse_id
+    }
+}','1796'

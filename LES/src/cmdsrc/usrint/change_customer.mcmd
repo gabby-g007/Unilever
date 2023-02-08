@@ -1,0 +1,61 @@
+<command>
+  <name>change customer</name>
+  <description>change customer</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+[select 'x'
+   from poldat_view
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'CHANGE-CSTTYP'
+    and polval = 'ENABLED'
+    and rtnum1 = 1
+	and wh_id = nvl(@wh_id, @@wh_id)] catch(-1403, 510)
+|
+if (@? = 0)
+{
+    [select polval dflt_csttyp
+       from poldat_view
+      where polcod = 'USR-UNILEVER'
+        and polvar = 'CHANGE-CSTTYP'
+        and rtstr1 = @cstnum
+        and rtnum1 = 1
+        and wh_id = nvl(@wh_id, @@wh_id)] catch(-1403, 510)
+    |
+    if (@? <> 0)
+    {
+        ^change customer
+         where cstnum = @cstnum
+           and client_id = @client_id
+           and adr_id = @adr_id
+           and @+mc_csttyp
+           and @*
+    }
+    else
+    {
+        if (@dflt_csttyp != @mc_csttyp and !@uc_integrator_call)
+        {
+            set return status
+             where status = '90002'
+        }
+        else
+        {
+            ^change customer
+             where cstnum = @cstnum
+               and client_id = @client_id
+               and adr_id = @adr_id
+               and mc_csttyp = @dflt_csttyp
+               and @*
+        }
+    }
+}
+else
+{
+    ^change customer
+     where @*
+}
+
+]]>
+</local-syntax>
+</command>

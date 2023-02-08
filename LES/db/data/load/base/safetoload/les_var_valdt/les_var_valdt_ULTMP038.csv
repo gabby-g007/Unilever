@@ -1,0 +1,2 @@
+var_nam,appl_id,frm_id,addon_id,cust_lvl,valdt_cmd,ena_flg,ret_fld_flg,ret_fld,grp_nam,valdt_mod
+lodnum,LES,PICKUP_A,LES,10,usr validate hold inventory where lodnum = '&lodnum',1,0,,UL,I

@@ -1,0 +1,86 @@
+<command>
+  <name>raise usr ems event for warehouse billing details</name>
+  <description>Warehouse Invoice Billing Master Details</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+list warehouses
+ where wh_id [not in ('WMD1' ,'----' )]
+|
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    publish data
+     where evt_msg = "Please check the attached File for Invoice Billing Details of Warehouse:
+   Warehouse:     @wh_id
+   From Date:     @sdte
+   To Date:       @edte
+   
+   Please check file attached for further details"
+       and evt_subj = "WH INV BILL Details - @wh_id"
+       and evt_qual = "wh_id,sdte,edte"
+       and evt_grp = 'BILLING'
+       and evt_pri = '1'
+       and evt_nam = @evt_nam
+       and src_sys = @src_sys
+       and lngdsc = 'Warehouse Invoice Billing Details'
+}
+else
+{
+    get ems event information
+     where evt_nam = 'USR-WAREHOUSE-BILLING-DETAILS'
+    |
+    if (@enabled = 1)
+    {
+        usr  billing master
+         where wh_id = nvl(@wh_id, @@wh_id) >> res
+       |
+        if (rowcount(@res) > 0)
+        {
+            [select to_char(sysdate, 'YYYYMMDD') fildte
+               from dual]
+            |
+            expand environment variable
+             where variable = '$LESDIR'
+            |
+            [select 'WH_BILLING_' || nvl(@wh_id, @@wh_id) || '-' || @fildte || '.csv' filnam,
+                    replace(@value, 'les', 'LES') || '\files\emsout\' filepath
+               from dual]
+            |
+            write csv file
+             where resdata = @res
+               and filnam = @filnam
+               and path = @filepath
+			|
+            go to sleep
+            where sleeptime = 2
+            |
+            get server information
+            |
+            list warehouses
+             where wh_id [not in ('WMD1' ,'----' )]
+            |
+            log ems event
+             where evt_nam = 'USR-WAREHOUSE-BILLING-DETAILS'
+               and src_sys = @src_sys
+               and in_trans = 0
+               and locale_id = 'US_ENGLISH'
+               and att_app_srv = @url
+               and wh_id = nvl(@wh_id, @@wh_id)
+               and lngdsc = @lngdsc
+               and att_file = @filnam
+               and att_path = @filepath || @filnam
+        }
+    }
+}
+]]>
+</local-syntax>
+  <documentation>
+<remarks></remarks>
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">No Records found</exception>
+
+</documentation>
+</command>

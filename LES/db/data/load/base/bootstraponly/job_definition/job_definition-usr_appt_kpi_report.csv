@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-APPT-KPI-REPORT,,Appointment kpi report to send JDA Status Sheet to Transportation Team,0,cron,raise usr ems alert for appointment kpi report,$LESDIR/log/USR-APPT-KPI-REPORT.log,,0,0 0 11 * * ?,0,,usr_data

@@ -1,0 +1,373 @@
+<command>
+  <name>list usr short investigation display</name>
+  <description>Lists all the short details</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and sortOrderClause = nvl(@sortOrderClause, 'temp.prtnum asc')
+|
+[/*#limit=@offset,@limit,true*/
+ select temp.wh_id,
+        temp.ftpcod,
+        temp.prtnum,
+        temp.prtfam,
+        temp.parflg,
+        temp.lngdsc,
+        temp.rplsts,
+        temp.ordnum,
+        temp.ordlin,
+        temp.min_shelf_hrs,
+        temp.car_move_id,
+        temp.ordqty,
+        temp.pckqty,
+        temp.ship_id,
+        temp.ship_line_id,
+        temp.dstloc,
+        temp.adrnam,
+        temp.invsts_prg,
+        temp.carcod,
+        temp.appt_id,
+        temp.start_dte,
+        temp.resch_start_dte
+   from (select rw.wh_id,
+                pf.ftpcod,
+                rw.invsts_prg,
+                rw.dstloc,
+                rw.prtnum,
+                rw.ordnum,
+                rw.ship_id,
+                rw.ship_line_id,
+                rw.pckqty,
+                decode(rw.rplsts, 'D', 'Pending Deposit', 'I', 'Issued', '') rplsts,
+                ol.parflg,
+                ol.ordlin,
+                ol.min_shelf_hrs,
+                p.prtfam,
+                prtdsc.lngdsc,
+                ol.ordqty,
+                oa.adrnam,
+                cm.car_move_id,
+                cm.carcod,
+                ap.appt_id,
+                ap.start_dte,
+                ap.end_dte,
+                uc_appt_eta.resch_start_dte
+           from rplwrk rw
+           join prtmst_view p
+             on rw.wh_id = p.wh_id
+            and rw.prtnum = p.prtnum
+           left
+           join prtdsc
+             on prtdsc.colval = rw.prtnum || '|' || p.prt_client_id || '|' || p.wh_id
+            and prtdsc.locale_id = nvl(@locale_id, @@locale_id)
+           left
+           join prtftp pf
+             on p.prtnum = pf.prtnum
+            and p.wh_id = pf.wh_id
+            and (pf.ftpcod = rw.ftpcod or pf.defftp_flg = decode(rw.ftpcod, null, 1, cast(null as int)))
+           left
+           join prtftp_dtl pfd
+             on pf.wh_id = pfd.wh_id
+            and pf.prtnum = pfd.prtnum
+            and pf.ftpcod = pfd.ftpcod
+            and pfd.uomcod = nvl(p.dspuom, p.stkuom)
+           join ord_line ol
+             on rw.wh_id = ol.wh_id
+            and rw.client_id = ol.client_id
+            and rw.ordnum = ol.ordnum
+            and rw.ordlin = ol.ordlin
+            and rw.ordsln = ol.ordsln
+           join ord o
+             on ol.wh_id = o.wh_id
+            and ol.client_id = o.client_id
+            and ol.ordnum = o.ordnum
+           join adrmst oa
+             on o.st_adr_id = oa.adr_id
+           join shipment s
+             on rw.ship_id = s.ship_id
+           left
+           join stop st
+             on s.stop_id = st.stop_id
+           left
+           join car_move cm
+             on st.car_move_id = cm.car_move_id
+           left
+           join appt ap
+             on cm.car_move_id = ap.car_move_id
+            and ap.appt_id = (select max(mxap.appt_id)
+                                from appt mxap
+                               where cm.car_move_id = mxap.car_move_id)
+           left
+           join appt_note apn
+             on ap.appt_id = apn.appt_id
+            and apn.notlin = (select min(an.notlin)
+                                from appt_note an
+                               where ap.appt_id = an.appt_id)
+           left
+           join uc_appt_eta
+             on ap.appt_id = uc_appt_eta.appt_id
+          where rw.wh_id = nvl(@wh_id, @@wh_id)
+            and rw.parref is null
+            and @+rw.ordnum
+            and @+rw.ship_id
+            and @+rw.prtnum
+            and @+rw.wkonum
+            and @+rw.rplsts
+            and @+rw.schbat
+            and @+rw.dstare
+            and @+rw.dstloc
+            and @+st.car_move_id) temp
+  where @filterByClause:raw
+  order by @sortOrderClause:raw] >> res
+|
+[[
+    PagedResults pagedRes = (PagedResults) res;
+    Integer total_row_count = pagedRes.getTotalRowCount();
+]]
+|
+publish data
+ where resCount = @result
+|
+{
+    publish data combination
+     where res = @res
+    |
+    [select pv.polval,
+            count(pv.rtstr1) as cnt_pfloc
+       from prtmst_view
+       left
+       join poldat_view pv
+         on pv.polval = prtmst_view.prt_client_id || '|' || @prtnum
+        and pv.polcod like 'STORE-ASG-LOC%'
+        and prtmst_view.wh_id = pv.wh_id
+        and pv.wh_id = nvl(@wh_id, @@wh_id)
+       left
+       join locmst
+         on locmst.stoloc = pv.rtstr1
+        and locmst.wh_id = pv.wh_id
+        and locmst.wh_id = nvl(@wh_id, @@wh_id)
+      where prtmst_view.prtnum = @prtnum
+        and prtmst_view.wh_id = nvl(@wh_id, @@wh_id)
+      group by pv.polval] catch(-1403)
+    |
+    if (@? = 0 and @cnt_pfloc > 1)
+    {
+        [select pv.rtstr1 as begin_loc,
+                l.maxqvl,
+                nvl((ins.untqty - ins.comqty), '0') pck_loc_inv
+           from prtmst_view
+           join poldat_view pv
+             on pv.polval = prtmst_view.prt_client_id || '|' || prtmst_view.prtnum
+            and pv.polcod like 'STORE-ASG-LOC%'
+            and prtmst_view.wh_id = pv.wh_id
+            and pv.wh_id = nvl(@wh_id, @@wh_id)
+           join locmst l
+             on l.stoloc = pv.rtstr1
+            and pv.polval = prtmst_view.prt_client_id || '|' || @prtnum
+            and pv.wh_id = @wh_id
+           join aremst am
+             on am.arecod = l.arecod
+            and am.wh_id = l.wh_id
+            and exists(select 1
+                         from poldat_view pv
+                        where pv.polcod = 'USR-UNILEVER'
+                          and pv.polvar = 'SHORT-INVESTIGATION-DISPLAY'
+                          AND pv.polval = 'PICKFACE-ARECOD'
+                          and am.arecod like '%' || pv.rtstr1 || '%'
+                          and pv.wh_id = nvl(@wh_id, @@wh_id))
+           left
+           join invsum ins
+             on ins.stoloc = l.stoloc
+            and ins.prtnum = @prtnum
+          where pv.polval = prtmst_view.prt_client_id || '|' || @prtnum] catch(-1403)
+    }
+    else
+    {
+        [select pv.rtstr1 as begin_loc,
+                l.maxqvl,
+                nvl((ins.untqty - ins.comqty), '0') pck_loc_inv
+           from prtmst_view
+           join poldat_view pv
+             on pv.polval = prtmst_view.prt_client_id || '|' || prtmst_view.prtnum
+            and pv.polcod like 'STORE-ASG-LOC%'
+            and prtmst_view.wh_id = pv.wh_id
+            and pv.wh_id = nvl(@wh_id, @@wh_id)
+           join locmst l
+             on l.stoloc = pv.rtstr1
+            and pv.polval = prtmst_view.prt_client_id || '|' || @prtnum
+            and pv.wh_id = @wh_id
+           left
+           join invsum ins
+             on ins.stoloc = l.stoloc
+            and ins.prtnum = @prtnum
+          where pv.polval = prtmst_view.prt_client_id || '|' || @prtnum] catch(-1403)
+    }
+    |
+    [select nvl(sum(case when iv.invsts = 'PRLS' then iv.untqty
+                         else 0
+                    end), '0') "prls_inv",
+            nvl(sum(case when iv.invsts = 'RELS' then iv.untqty
+                         else 0
+                    end), '0') "rels_inv"
+       from locmst l
+       join inventory_view iv
+         on iv.stoloc = l.stoloc
+        and l.loc_typ_id in (select loc_typ_id
+                               from loc_typ
+                              where fwiflg = '1'
+                                and stoare_flg = '1'
+                                and wip_supflg = '0')
+       join aremst am
+         on am.arecod = l.arecod
+        and am.wh_id = l.wh_id
+        and not exists(select 1
+                         from poldat_view pv
+                        where pv.polcod = 'USR-UNILEVER'
+                          and pv.polvar = 'SHORT-INVESTIGATION-DISPLAY'
+                          AND pv.polval = 'PICKFACE-ARECOD'
+                          and am.arecod like '%' || pv.rtstr1 || '%'
+                          and pv.wh_id = nvl(@wh_id, @@wh_id))
+      where iv.prtnum = @prtnum] catch(-1403)
+    |
+    [select rcvlin.prtnum,
+            sum(iv.untqty) inb_qty,
+            count(distinct iv.invsts) as "count_invsts",
+            case when count(distinct iv.invsts) = 1 then min(iv.invsts)
+                 when count(distinct iv.invsts) > 1 then 'Many'
+            end invsts
+       from rcvtrk
+       join trlr
+         on rcvtrk.trlr_id = trlr.trlr_id
+       join rcvlin
+         on rcvlin.trknum = rcvtrk.trknum
+        and rcvlin.wh_id = rcvtrk.wh_id
+       join inventory_view iv
+         on iv.rcvkey = rcvlin.rcvkey
+        and iv.stoloc = rcvlin.trknum
+       join prtmst_view p
+         on rcvlin.wh_id = p.wh_id
+        and rcvlin.prtnum = p.prtnum
+      where rcvtrk.clsdte is null
+        and rcvlin.prtnum = @prtnum
+        and rcvlin.wh_id = nvl(@wh_id, @@wh_id)
+        and trlr.trlr_stat in ('CI', 'R', 'SUSP')
+      group by rcvlin.prtnum] catch(-1403)
+    |
+	[select appt.appt_id early_appt_id,
+        appt.start_dte early_appt_start_dte
+   from appt
+   inner
+   join (select min(appt.start_dte) early_appt_start_dte
+           from rcvlin
+           join rcvtrk
+             on rcvlin.trknum = rcvtrk.trknum
+            and rcvtrk.rcvtrk_stat = 'EX'
+           left
+           join trlr
+             on rcvtrk.trlr_id = trlr.trlr_id
+            and trlr.trlr_cod = 'RCV'
+           left
+           join appt
+             on appt.appt_id = trlr.appt_id
+           left
+           join appt_mstrcpt
+             on rcvlin.trknum = appt_mstrcpt.trknum
+          where rcvlin.prtnum = @prtnum
+            and rcvlin.wh_id = nvl(@wh_id, @@wh_id)) temp_appt
+     on temp_appt.early_appt_start_dte = appt.start_dte
+   left
+   join trlr
+     on appt.appt_id = trlr.appt_id
+    and trlr.trlr_cod = 'RCV'
+   left
+   join rcvtrk
+     on rcvtrk.trlr_id = trlr.trlr_id
+    and rcvtrk.rcvtrk_stat = 'EX'
+   left
+   join rcvlin
+     on rcvtrk.trknum = rcvlin.trknum
+  where temp_appt.early_appt_start_dte = appt.start_dte
+    and rcvlin.prtnum = @prtnum]catch(@?)
+    |
+     [select rcvtrk.trknum,
+            uc_appt_eta.eta eta
+       from rcvtrk
+       join trlr
+         on rcvtrk.trlr_id = trlr.trlr_id
+        and rcvtrk.rcvtrk_stat = 'EX'
+        and trlr.trlr_cod = 'RCV'
+       join appt
+         on appt.appt_id = trlr.appt_id
+        and appt.trlr_num = trlr.trlr_num
+       left
+       join uc_appt_eta
+         on appt.appt_id = uc_appt_eta.appt_id
+      where appt.appt_id = @early_appt_id] catch(@?)
+    |
+    /* push all the data out to the PageBuilder */
+    publish data
+     where wh_id = @wh_id
+       and adrnam = @adrnam
+       and start_dte = @start_dte
+       and resch_start_dte = @resch_start_dte
+       and prtnum = @prtnum
+       and lngdsc = @lngdsc
+       and car_move_id = @car_move_id
+       and ship_id = @ship_id
+       and ordnum = @ordnum
+       and dstloc = @dstloc
+       and ordqty = @ordqty
+	   and ordlin=@ordlin
+	   and min_shelf_hrs=@min_shelf_hrs
+       and pckqty = @pckqty
+       and ftpcod = @ftpcod
+       and invsts_prg = @invsts_prg
+       and prtfam = @prtfam
+       and begin_loc = @begin_loc
+       and maxqvl = @maxqvl
+       and pck_loc_inv = @pck_loc_inv
+       and rels_inv = @rels_inv
+       and prls_inv = @prls_inv
+       and inb_qty = @inb_qty
+       and invsts = @invsts
+       and early_appt_start_dte = @early_appt_start_dte
+	   and eta = @eta
+       and trknum = @trknum
+       and rplsts = @rplsts
+} >> totalRes
+|
+/* publish the results as paged results with pagination.*/
+if (rowcount(@totalRes) > 0)
+{
+    publish data
+     where currentrow = rowcount(@totalRes)
+       and totalResults = @resCount
+    |
+    if (@totalResults > @limit)
+    {
+        publish data
+         where total_rowcount = @resCount - @currentrow
+           and finalRes = @totalRes
+    }
+    else
+    {
+        publish data
+         where total_rowcount = 0
+           and finalRes = @totalRes
+    }
+    |
+    if (@limit and @finalRes)
+    {
+        get paged results
+         where mocaRes = @finalRes
+           and limit = @limit
+           and offset = @offset
+           and totalRowCount = @total_rowcount
+    }
+}
+]]>
+</local-syntax>
+</command>

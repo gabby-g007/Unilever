@@ -1,0 +1,2 @@
+serv_id,serv_typ,actcod,retry_fail_flg,auto_cnfrm_flg,yestoall_flg,moddte,mod_usr_id
+USR-CRE-STO-WRK,BCKSERV,RCV_PUT,0,0,0,20220729075417,NOUSER

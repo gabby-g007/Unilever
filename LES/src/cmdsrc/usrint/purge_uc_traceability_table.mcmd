@@ -1,0 +1,18 @@
+<command>
+  <name>purge uc traceability table</name>
+  <description>purge uc traceability table</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+[select *
+   from uc_traceability
+  where insdte < sysdate - /*=moca_util.days(*/ @dayold /*=)*/]
+|
+[delete
+   from uc_traceability
+  where event_id = @event_id]
+
+]]>
+</local-syntax>
+</command>

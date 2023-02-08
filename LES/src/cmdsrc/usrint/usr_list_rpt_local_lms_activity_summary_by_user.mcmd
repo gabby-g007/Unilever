@@ -1,0 +1,36 @@
+<command>
+  <name>usr list rpt local lms activity summary by user</name>
+  <description>Usr List Report LMS Activity Summary by User</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+publish data 
+           where begdte = @frmdte
+             and enddte = @todte
+             and wh_id = nvl(@wh_id, @@wh_id) 
+             
+         |
+         usr list local lms activity summary by user where @*
+         |
+         list users where usr_id = @usr_id 
+         |
+         publish data 
+           where usr_id = @usr_id 
+             and last_name = @last_name
+             and first_name = @first_name
+             and lmswrk = @lmswrk
+             and actdsc = @actdsc
+             and palqty = @palqty
+             and casqty = @casqty
+             and lmscnt = @lmscnt
+             and mc_supervisor_id = @mc_supervisor_id
+]]>
+</local-syntax>
+  <documentation>
+<remarks></remarks>
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified inventory activity not found</exception>
+<seealso cref="usr list local lms activity summary by user"></seealso>
+
+</documentation>
+</command>

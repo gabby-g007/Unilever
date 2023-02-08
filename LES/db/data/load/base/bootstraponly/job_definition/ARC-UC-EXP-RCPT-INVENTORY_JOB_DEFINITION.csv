@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+"ARC-UC-EXP-RCPT-INVENTORY","SERVER1","Archives data from table UC_EXP_RCPT_INVENTORY",1,"cron","archive production data where arc_nam = 'ARCHIVE_UC_EXP_RCPT_INVENTORY'","$LESDIR/log/arc_uc_exp_rcpt_inventory.log","",0,"0 30 23 * * ?",0,0,""

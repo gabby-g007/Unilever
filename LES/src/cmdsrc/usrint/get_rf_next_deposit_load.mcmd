@@ -1,0 +1,22 @@
+<command>
+  <name>get rf next deposit load</name>
+  <description>get rf next deposit load</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+[select count(*) cnt
+   from poldat
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'CLUSTER-PICK'
+    and polval = 'ENABLE'
+    and rtnum1 = 1]
+|
+if (@cnt > 0)
+{
+    check usr cluster pick lpn
+} >> res
+|
+^get rf next deposit load
+]]>
+</local-syntax>
+</command>

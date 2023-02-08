@@ -1,0 +1,2388 @@
+<command>
+  <name>list usr cluster pick</name>
+  <description>list usr cluster pick</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and usr_id = nvl(@usr_id, @@usr_id)
+   and oprcod = 'CPCK'
+   and sortOrderClause = nvl(@sortOrderClause, 'temp1.start_dte, temp1.car_move_id')
+|
+get client in clause for user
+ where usr_id = @usr_id
+   and wh_id = @wh_id
+   and table_prefix = 'wrkque'
+   and prt_client_id_flg = 0
+|
+get mls text
+ where mls_id = 'lblMany'
+   and locale_id = nvl(@locale_id, @@locale_id)
+|
+publish data
+ where mlsMultiple = nvl(@mls_text, '**Many**')
+|
+[select 1
+   from dual
+  where exists(select 1
+                 from wrkque
+                where @+oprcod
+                  and @+refloc
+                  and @+ackdevcod
+                  and @+lodnum
+                  and @+srcloc
+                  and @+dstloc
+                  and @+wh_id)] catch(-1403)
+|
+if (@? = -1403 or (@query_src != '' and @query_src = 'profile'))
+{
+    hide stack variable
+     where name = 'query_src'
+    |
+    /*
+     ** Return a list of columns from work queue
+     */
+    [select '' reqnum,
+            '' wrksts,
+            '' baspri,
+            '' effpri,
+            '' wh_id,
+            '' oprcod,
+            '' srcloc,
+            '' dstloc,
+            '' ack_usr_id,
+            '' ackdevcod,
+            '' client_id,
+            '' lodnum,
+            '' lodlvl,
+            '' adddte,
+            '' issdte,
+            '' ackdte,
+            '' pckdte,
+            '' depdte,
+            '' wrkref,
+            '' lblbat,
+            '' cntgrp,
+            '' refloc,
+            '' batnum,
+            '' src_wrk_zone_id,
+            '' srcwrkare,
+            '' loctrvseq,
+            '' zontrvseq,
+            '' asg_usr_id,
+            '' lstescdte,
+            '' locacc,
+            '' schbat,
+            '' list_id,
+            '' asg_role_id,
+            '' src_bldg_id,
+            '' src_aisle_id,
+            '' que_dstloc,
+            '' cnt_id,
+            '' palctl_wrk_flg,
+            '' pck_exp_flg,
+            '' ship_id,
+            '' cponum,
+            '' car_move_id,
+            '' ctnnum
+       from dual
+      where 1 = 2]
+}
+else
+{
+    /*
+     ** if wrkque.client_id is null, every user can do the work
+     ** The rush_flg specifies the order is 'Rush' or not.
+     ** palctl_wrk_flg - Identifies that the work is part af a list
+     ** planned by PalletCtl.
+     ** pck_exp_flg - Identifies there exists rplwrk for the list
+     */
+    /*
+     ** The work does not get listed for generic directed trailer
+     ** loading in 'Work Queue System Operations' based on Carrier Move Id.
+     ** So the code is added to join the tables wrkque and stop on stop_id
+     ** and refloc to display  work based on the Carrier Move Id.
+     */
+    if (@-ordnum = '' and @-rush_flg = '')
+    {
+        if (@-cnt_id is null)
+        {
+            /*
+             ** We need this check here because we need ensure that we only list the
+             ** results that the cnt_id is null, otherwise it will cause some error
+             ** when we attempt to get the result set.
+             */
+            [/*#limit=@offset,@limit,true*/
+             select temp1.reqnum,
+                    temp1.wrksts,
+                    temp1.baspri,
+                    temp1.effpri,
+                    temp1.wh_id,
+                    temp1.oprcod,
+                    temp1.srcloc,
+                    temp1.dstloc,
+                    temp1.client_id,
+                    temp1.lodlvl,
+                    temp1.ack_usr_id,
+                    temp1.ackdevcod,
+                    temp1.lodnum,
+                    temp1.adddte,
+                    temp1.asg_role_id,
+                    temp1.asg_usr_id,
+                    temp1.batnum,
+                    temp1.cntgrp,
+                    temp1.depdte,
+                    temp1.issdte,
+                    temp1.lblbat,
+                    temp1.locacc,
+                    temp1.lstescdte,
+                    temp1.pckdte,
+                    temp1.ackdte,
+                    temp1.wrkref,
+                    temp1.refloc,
+                    temp1.src_wrk_zone_id,
+                    temp1.srcwrkare,
+                    temp1.loctrvseq,
+                    temp1.zontrvseq,
+                    temp1.schbat,
+                    temp1.list_id,
+                    temp1.src_bldg_id,
+                    temp1.src_aisle_id,
+                    temp1.que_dstloc,
+                    temp1.cnt_id,
+                    temp1.palctl_wrk_flg,
+                    temp1.pck_exp_flg,
+                    temp1.ship_id,
+                    temp1.cponum,
+                    temp1.car_move_id,
+                    temp1.ctnnum,
+                    temp1.start_dte
+               from (select wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            decode(wrkque.oprcod, 'BPCK', @mlsMultiple, 'TBPCK', @mlsMultiple, wrkque.dstloc) que_dstloc,
+                            null cnt_id,
+                            decode(pckwrk_view.unique_pallet_id, null, 0, 1) palctl_wrk_flg,
+                            decode(rplwrk.list_id, null, 0, 1) pck_exp_flg,
+                            pckwrk_view.ship_id,
+                            decode(count(distinct ord.cponum), 0, '', 1, max(ord.cponum), @mlsMultiple) cponum,
+                            car_move.car_move_id,
+                            wrkque.ctnnum,
+                            appt.start_dte
+                       from wrkque
+                       left outer
+                       join pckwrk_view
+                         on wrkque.wrkref = pckwrk_view.wrkref
+                        and pckwrk_view.pcksts != 'C'
+                        and @+pckwrk_view.wh_id
+                       left
+                       join rplwrk
+                         on rplwrk.list_id = wrkque.list_id
+                       left outer
+                       join ord
+                         on pckwrk_view.ordnum = ord.ordnum
+                        and pckwrk_view.client_id = ord.client_id
+                        and pckwrk_view.wh_id = ord.wh_id
+                       left outer
+                       join shipment
+                         on shipment.ship_id = pckwrk_view.ship_id
+                       left outer
+                       join stop
+                         on (shipment.stop_id = stop.stop_id or wrkque.refloc = stop.stop_id)
+                       left outer
+                       join car_move
+                         on stop.car_move_id = car_move.car_move_id
+                       left
+                       join appt
+                         on car_move.car_move_id = appt.car_move_id
+                      where wrkque.list_id is null
+                        and wrkque.lblbat is null
+                        and wrkque.lodnum is null
+                        and wrkque.cntgrp is null
+                        and @+wrkque.adddte:date
+                        and @+wrkque.issdte:date
+                        and @+wrkque.ackdte:date
+                        and @+wrkque.pckdte:date
+                        and @+wrkque.depdte:date
+                        and @+wrkque.lstescdte:date
+                        and @+wrkque.lodnum
+                        and @+wrkque.lodlvl
+                        and @+wrkque.ackdevcod
+                        and @+wrkque.dstloc
+                        and @+wrkque.lblbat
+                        and @+wrkque.wrkref
+                        and @+wrkque.refloc
+                        and @+wrkque.srcloc
+                        and @+wrkque.wh_id
+                        and @+wrkque.client_id
+                        and @+wrkque.list_id
+                        and @+wrkque.schbat
+                        and @+wrkque.src_wrk_zone_id
+                        and @+pckwrk_view.ordnum
+                        and @+pckwrk_view.ship_id
+                        and @+pckwrk_view.revlvl
+                        and @+pckwrk_view.rtcust
+                        and @+pckwrk_view.ship_line_id
+                        and @+pckwrk_view.slot
+                        and @+pckwrk_view.splflg
+                        and @+pckwrk_view.ordlin
+                        and @+pckwrk_view.ordsln
+                        and @+pckwrk_view.orgcod
+                        and @+pckwrk_view.pallet_id
+                        and @+pckwrk_view.pallet_load_seq
+                        and @+pckwrk_view.pallet_pos
+                        and @+pckwrk_view.pck_catch_qty
+                        and @+pckwrk_view.pckqty
+                        and @+pckwrk_view.pcksts
+                        and @+pckwrk_view.invsts
+                        and @+pckwrk_view.invsts_prg
+                        and @+pckwrk_view.list_seqnum
+                        and @+pckwrk_view.lotnum
+                        and @+pckwrk_view.inv_attr_str1
+                        and @+pckwrk_view.inv_attr_str2
+                        and @+pckwrk_view.inv_attr_str3
+                        and @+pckwrk_view.inv_attr_str4
+                        and @+pckwrk_view.inv_attr_str5
+                        and @+pckwrk_view.inv_attr_str6
+                        and @+pckwrk_view.inv_attr_str7
+                        and @+pckwrk_view.inv_attr_str8
+                        and @+pckwrk_view.inv_attr_str9
+                        and @+pckwrk_view.inv_attr_str10
+                        and @+pckwrk_view.inv_attr_str11
+                        and @+pckwrk_view.inv_attr_str12
+                        and @+pckwrk_view.inv_attr_str13
+                        and @+pckwrk_view.inv_attr_str14
+                        and @+pckwrk_view.inv_attr_str15
+                        and @+pckwrk_view.inv_attr_str16
+                        and @+pckwrk_view.inv_attr_str17
+                        and @+pckwrk_view.inv_attr_str18
+                        and @+pckwrk_view.inv_attr_int1
+                        and @+pckwrk_view.inv_attr_int2
+                        and @+pckwrk_view.inv_attr_int3
+                        and @+pckwrk_view.inv_attr_int4
+                        and @+pckwrk_view.inv_attr_int5
+                        and @+pckwrk_view.inv_attr_flt1
+                        and @+pckwrk_view.inv_attr_flt2
+                        and @+pckwrk_view.inv_attr_flt3
+                        and @+pckwrk_view.inv_attr_dte1:date
+                        and @+pckwrk_view.inv_attr_dte2:date
+                        and @+pckwrk_view.min_shelf_hrs
+                        and @+pckwrk_view.bto_seqnum
+                        and @+pckwrk_view.cmbcod
+                        and @+pckwrk_view.concod
+                        and @+pckwrk_view.dst_mov_zone_id
+                        and @+pckwrk_view.stcust
+                        and @+pckwrk_view.supnum
+                        and @+pckwrk_view.untcas
+                        and @+pckwrk_view.untpak
+                        and @+pckwrk_view.wkolin
+                        and @+pckwrk_view.wkonum
+                        and @+pckwrk_view.wkorev
+                        and @+pckwrk_view.frsflg
+                        and @+pckwrk_view.ftpcod
+                        and @+pckwrk_view.ship_ctncod
+                        and @+pckwrk_view.ship_ctnnum
+                        and @+rplwrk.alcdte
+                        and @+ord.entdte
+                        and @+ord.crncy_code
+                        and @+ord.rrlflg
+                        and @+ord.rt_adr_id
+                        and @+shipment.srvlvl
+                        and @+shipment.host_ext_id
+                        and @+shipment.stop_id
+                        and @+shipment.doc_num
+                        and @+shipment.track_num
+                        and @+shipment.host_client_id
+                        and @+shipment.host_exit_id
+                        and @+shipment.carcod
+                        and @+shipment.srvlvl
+                        and @+shipment.rate_serv_nam
+                        and @+shipment.arcdte
+                        and @+shipment.arc_src
+                        and @+car_move.car_move_id
+                        and @+wrkque.oprcod
+                        and (wrkque.client_id is null or @client_in_clause:raw)
+                        and @+wrkque.src_wrk_zone_id
+                        and @+wrkque.ctnnum
+                        and @*
+                      group by wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            pckwrk_view.unique_pallet_id,
+                            rplwrk.list_id,
+                            wrkque.rf_out_aud_id,
+                            pckwrk_view.ship_id,
+                            car_move.car_move_id,
+                            wrkque.ctnnum,
+                            appt.start_dte
+                     union
+                     select wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            decode(wrkque.oprcod, 'BPCK', @mlsMultiple, 'TBPCK', @mlsMultiple, wrkque.dstloc) que_dstloc,
+                            null cnt_id,
+                            decode(pckwrk_view.unique_pallet_id, null, 0, 1) palctl_wrk_flg,
+                            decode(rplwrk.list_id, null, 0, 1) pck_exp_flg,
+                            pckwrk_view.ship_id,
+                            decode(count(distinct ord.cponum), 0, '', 1, max(ord.cponum), @mlsMultiple) cponum,
+                            car_move.car_move_id,
+                            wrkque.ctnnum,
+                            appt.start_dte
+                       from wrkque
+                       left outer
+                       join pckwrk_view
+                         on wrkque.lblbat = pckwrk_view.lblbat
+                        and pckwrk_view.pcksts != 'C'
+                        and @+pckwrk_view.wh_id
+                       left
+                       join rplwrk
+                         on rplwrk.list_id = wrkque.list_id
+                       left outer
+                       join ord
+                         on pckwrk_view.ordnum = ord.ordnum
+                        and pckwrk_view.client_id = ord.client_id
+                        and pckwrk_view.wh_id = ord.wh_id
+                       left outer
+                       join shipment
+                         on shipment.ship_id = pckwrk_view.ship_id
+                       left outer
+                       join stop
+                         on (shipment.stop_id = stop.stop_id or wrkque.refloc = stop.stop_id)
+                       left outer
+                       join car_move
+                         on stop.car_move_id = car_move.car_move_id
+                       left
+                       join appt
+                         on car_move.car_move_id = appt.car_move_id
+                      where wrkque.lblbat is not null
+                        and wrkque.list_id is null
+                        and wrkque.lodnum is null
+                        and wrkque.cntgrp is null
+                        and @+wrkque.adddte:date
+                        and @+wrkque.issdte:date
+                        and @+wrkque.ackdte:date
+                        and @+wrkque.pckdte:date
+                        and @+wrkque.depdte:date
+                        and @+wrkque.lstescdte:date
+                        and @+wrkque.lodnum
+                        and @+wrkque.lodlvl
+                        and @+wrkque.ackdevcod
+                        and @+wrkque.dstloc
+                        and @+wrkque.lblbat
+                        and @+wrkque.wrkref
+                        and @+wrkque.refloc
+                        and @+wrkque.srcloc
+                        and @+wrkque.wh_id
+                        and @+wrkque.client_id
+                        and @+wrkque.list_id
+                        and @+wrkque.schbat
+                        and @+wrkque.src_wrk_zone_id
+                        and @+pckwrk_view.ordnum
+                        and @+pckwrk_view.ship_id
+                        and @+pckwrk_view.revlvl
+                        and @+pckwrk_view.rtcust
+                        and @+pckwrk_view.ship_line_id
+                        and @+pckwrk_view.slot
+                        and @+pckwrk_view.splflg
+                        and @+pckwrk_view.ordlin
+                        and @+pckwrk_view.ordsln
+                        and @+pckwrk_view.orgcod
+                        and @+pckwrk_view.pallet_id
+                        and @+pckwrk_view.pallet_load_seq
+                        and @+pckwrk_view.pallet_pos
+                        and @+pckwrk_view.pck_catch_qty
+                        and @+pckwrk_view.pckqty
+                        and @+pckwrk_view.pcksts
+                        and @+pckwrk_view.invsts
+                        and @+pckwrk_view.invsts_prg
+                        and @+pckwrk_view.list_seqnum
+                        and @+pckwrk_view.lotnum
+                        and @+pckwrk_view.inv_attr_str1
+                        and @+pckwrk_view.inv_attr_str2
+                        and @+pckwrk_view.inv_attr_str3
+                        and @+pckwrk_view.inv_attr_str4
+                        and @+pckwrk_view.inv_attr_str5
+                        and @+pckwrk_view.inv_attr_str6
+                        and @+pckwrk_view.inv_attr_str7
+                        and @+pckwrk_view.inv_attr_str8
+                        and @+pckwrk_view.inv_attr_str9
+                        and @+pckwrk_view.inv_attr_str10
+                        and @+pckwrk_view.inv_attr_str11
+                        and @+pckwrk_view.inv_attr_str12
+                        and @+pckwrk_view.inv_attr_str13
+                        and @+pckwrk_view.inv_attr_str14
+                        and @+pckwrk_view.inv_attr_str15
+                        and @+pckwrk_view.inv_attr_str16
+                        and @+pckwrk_view.inv_attr_str17
+                        and @+pckwrk_view.inv_attr_str18
+                        and @+pckwrk_view.inv_attr_int1
+                        and @+pckwrk_view.inv_attr_int2
+                        and @+pckwrk_view.inv_attr_int3
+                        and @+pckwrk_view.inv_attr_int4
+                        and @+pckwrk_view.inv_attr_int5
+                        and @+pckwrk_view.inv_attr_flt1
+                        and @+pckwrk_view.inv_attr_flt2
+                        and @+pckwrk_view.inv_attr_flt3
+                        and @+pckwrk_view.inv_attr_dte1:date
+                        and @+pckwrk_view.inv_attr_dte2:date
+                        and @+pckwrk_view.min_shelf_hrs
+                        and @+pckwrk_view.bto_seqnum
+                        and @+pckwrk_view.cmbcod
+                        and @+pckwrk_view.concod
+                        and @+pckwrk_view.dst_mov_zone_id
+                        and @+pckwrk_view.stcust
+                        and @+pckwrk_view.supnum
+                        and @+pckwrk_view.untcas
+                        and @+pckwrk_view.untpak
+                        and @+pckwrk_view.wkolin
+                        and @+pckwrk_view.wkonum
+                        and @+pckwrk_view.wkorev
+                        and @+pckwrk_view.frsflg
+                        and @+pckwrk_view.ftpcod
+                        and @+pckwrk_view.ship_ctncod
+                        and @+pckwrk_view.ship_ctnnum
+                        and @+rplwrk.alcdte
+                        and @+ord.entdte
+                        and @+ord.crncy_code
+                        and @+ord.rrlflg
+                        and @+ord.rt_adr_id
+                        and @+shipment.srvlvl
+                        and @+shipment.host_ext_id
+                        and @+shipment.stop_id
+                        and @+shipment.doc_num
+                        and @+shipment.track_num
+                        and @+shipment.host_client_id
+                        and @+shipment.host_exit_id
+                        and @+shipment.carcod
+                        and @+shipment.srvlvl
+                        and @+shipment.rate_serv_nam
+                        and @+shipment.arcdte
+                        and @+shipment.arc_src
+                        and @+car_move.car_move_id
+                        and @+wrkque.oprcod
+                        and (wrkque.client_id is null or @client_in_clause:raw)
+                        and @+wrkque.src_wrk_zone_id
+                        and @+wrkque.ctnnum
+                        and @*
+                      group by wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            pckwrk_view.unique_pallet_id,
+                            rplwrk.list_id,
+                            wrkque.rf_out_aud_id,
+                            pckwrk_view.ship_id,
+                            car_move.car_move_id,
+                            wrkque.ctnnum,
+                            appt.start_dte
+                     union
+                     select wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            decode(wrkque.oprcod, 'BPCK', @mlsMultiple, 'TBPCK', @mlsMultiple, wrkque.dstloc) que_dstloc,
+                            null cnt_id,
+                            decode(pckwrk_view.unique_pallet_id, null, 0, 1) palctl_wrk_flg,
+                            decode(rplwrk.list_id, null, 0, 1) pck_exp_flg,
+                            pckwrk_view.ship_id,
+                            decode(count(distinct ord.cponum), 0, '', 1, max(ord.cponum), @mlsMultiple) cponum,
+                            car_move.car_move_id,
+                            wrkque.ctnnum,
+                            appt.start_dte
+                       from wrkque
+                       left outer
+                       join pckwrk_view
+                         on wrkque.list_id = pckwrk_view.list_id
+                        and pckwrk_view.pcksts != 'C'
+                        and @+pckwrk_view.wh_id
+                       left
+                       join rplwrk
+                         on rplwrk.list_id = wrkque.list_id
+                       left outer
+                       join ord
+                         on pckwrk_view.ordnum = ord.ordnum
+                        and pckwrk_view.client_id = ord.client_id
+                        and pckwrk_view.wh_id = ord.wh_id
+                       left outer
+                       join shipment
+                         on shipment.ship_id = pckwrk_view.ship_id
+                       left outer
+                       join stop
+                         on (shipment.stop_id = stop.stop_id or wrkque.refloc = stop.stop_id)
+                       left outer
+                       join car_move
+                         on stop.car_move_id = car_move.car_move_id
+                       left
+                       join appt
+                         on car_move.car_move_id = appt.car_move_id
+                      where wrkque.list_id is not null
+                        and wrkque.cntgrp is null
+                        and @+wrkque.adddte:date
+                        and @+wrkque.issdte:date
+                        and @+wrkque.ackdte:date
+                        and @+wrkque.pckdte:date
+                        and @+wrkque.depdte:date
+                        and @+wrkque.lstescdte:date
+                        and @+wrkque.lodnum
+                        and @+wrkque.lodlvl
+                        and @+wrkque.ackdevcod
+                        and @+wrkque.dstloc
+                        and @+wrkque.lblbat
+                        and @+wrkque.wrkref
+                        and @+wrkque.refloc
+                        and @+wrkque.srcloc
+                        and @+wrkque.wh_id
+                        and @+wrkque.client_id
+                        and @+wrkque.list_id
+                        and @+wrkque.schbat
+                        and @+wrkque.src_wrk_zone_id
+                        and @+pckwrk_view.ordnum
+                        and @+pckwrk_view.ship_id
+                        and @+pckwrk_view.revlvl
+                        and @+pckwrk_view.rtcust
+                        and @+pckwrk_view.ship_line_id
+                        and @+pckwrk_view.slot
+                        and @+pckwrk_view.splflg
+                        and @+pckwrk_view.ordlin
+                        and @+pckwrk_view.ordsln
+                        and @+pckwrk_view.orgcod
+                        and @+pckwrk_view.pallet_id
+                        and @+pckwrk_view.pallet_load_seq
+                        and @+pckwrk_view.pallet_pos
+                        and @+pckwrk_view.pck_catch_qty
+                        and @+pckwrk_view.pckqty
+                        and @+pckwrk_view.pcksts
+                        and @+pckwrk_view.invsts
+                        and @+pckwrk_view.invsts_prg
+                        and @+pckwrk_view.list_seqnum
+                        and @+pckwrk_view.lotnum
+                        and @+pckwrk_view.inv_attr_str1
+                        and @+pckwrk_view.inv_attr_str2
+                        and @+pckwrk_view.inv_attr_str3
+                        and @+pckwrk_view.inv_attr_str4
+                        and @+pckwrk_view.inv_attr_str5
+                        and @+pckwrk_view.inv_attr_str6
+                        and @+pckwrk_view.inv_attr_str7
+                        and @+pckwrk_view.inv_attr_str8
+                        and @+pckwrk_view.inv_attr_str9
+                        and @+pckwrk_view.inv_attr_str10
+                        and @+pckwrk_view.inv_attr_str11
+                        and @+pckwrk_view.inv_attr_str12
+                        and @+pckwrk_view.inv_attr_str13
+                        and @+pckwrk_view.inv_attr_str14
+                        and @+pckwrk_view.inv_attr_str15
+                        and @+pckwrk_view.inv_attr_str16
+                        and @+pckwrk_view.inv_attr_str17
+                        and @+pckwrk_view.inv_attr_str18
+                        and @+pckwrk_view.inv_attr_int1
+                        and @+pckwrk_view.inv_attr_int2
+                        and @+pckwrk_view.inv_attr_int3
+                        and @+pckwrk_view.inv_attr_int4
+                        and @+pckwrk_view.inv_attr_int5
+                        and @+pckwrk_view.inv_attr_flt1
+                        and @+pckwrk_view.inv_attr_flt2
+                        and @+pckwrk_view.inv_attr_flt3
+                        and @+pckwrk_view.inv_attr_dte1:date
+                        and @+pckwrk_view.inv_attr_dte2:date
+                        and @+pckwrk_view.min_shelf_hrs
+                        and @+pckwrk_view.bto_seqnum
+                        and @+pckwrk_view.cmbcod
+                        and @+pckwrk_view.concod
+                        and @+pckwrk_view.dst_mov_zone_id
+                        and @+pckwrk_view.stcust
+                        and @+pckwrk_view.supnum
+                        and @+pckwrk_view.untcas
+                        and @+pckwrk_view.untpak
+                        and @+pckwrk_view.wkolin
+                        and @+pckwrk_view.wkonum
+                        and @+pckwrk_view.wkorev
+                        and @+pckwrk_view.frsflg
+                        and @+pckwrk_view.ftpcod
+                        and @+pckwrk_view.ship_ctncod
+                        and @+pckwrk_view.ship_ctnnum
+                        and @+rplwrk.alcdte
+                        and @+ord.entdte
+                        and @+ord.crncy_code
+                        and @+ord.rrlflg
+                        and @+ord.rt_adr_id
+                        and @+shipment.srvlvl
+                        and @+shipment.host_ext_id
+                        and @+shipment.stop_id
+                        and @+shipment.doc_num
+                        and @+shipment.track_num
+                        and @+shipment.host_client_id
+                        and @+shipment.host_exit_id
+                        and @+shipment.carcod
+                        and @+shipment.srvlvl
+                        and @+shipment.rate_serv_nam
+                        and @+shipment.arcdte
+                        and @+shipment.arc_src
+                        and @+car_move.car_move_id
+                        and @+wrkque.oprcod
+                        and (wrkque.client_id is null or @client_in_clause:raw)
+                        and @+wrkque.src_wrk_zone_id
+                        and @+wrkque.ctnnum
+                        and @*
+                      group by wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            pckwrk_view.unique_pallet_id,
+                            rplwrk.list_id,
+                            wrkque.rf_out_aud_id,
+                            pckwrk_view.ship_id,
+                            car_move.car_move_id,
+                            wrkque.ctnnum,
+                            appt.start_dte
+                     union
+                     select wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            decode(wrkque.oprcod, 'BPCK', @mlsMultiple, 'TBPCK', @mlsMultiple, wrkque.dstloc) que_dstloc,
+                            null cnt_id,
+                            decode(pckwrk_view.unique_pallet_id, null, 0, 1) palctl_wrk_flg,
+                            decode(rplwrk.list_id, null, 0, 1) pck_exp_flg,
+                            pckwrk_view.ship_id,
+                            decode(count(distinct ord.cponum), 0, '', 1, max(ord.cponum), @mlsMultiple) cponum,
+                            car_move.car_move_id,
+                            wrkque.ctnnum,
+                            appt.start_dte
+                       from wrkque
+                       left outer
+                       join pckwrk_view
+                         on wrkque.lodnum = pckwrk_view.pallet_id
+                        and pckwrk_view.pcksts != 'C'
+                        and @+pckwrk_view.wh_id
+                       left
+                       join rplwrk
+                         on rplwrk.list_id = wrkque.list_id
+                       left outer
+                       join ord
+                         on pckwrk_view.ordnum = ord.ordnum
+                        and pckwrk_view.client_id = ord.client_id
+                        and pckwrk_view.wh_id = ord.wh_id
+                       left outer
+                       join shipment
+                         on shipment.ship_id = pckwrk_view.ship_id
+                       left outer
+                       join stop
+                         on (shipment.stop_id = stop.stop_id or wrkque.refloc = stop.stop_id)
+                       left outer
+                       join car_move
+                         on stop.car_move_id = car_move.car_move_id
+                       left
+                       join appt
+                         on car_move.car_move_id = appt.car_move_id
+                      where wrkque.lodnum is not null
+                        and wrkque.schbat is null
+                        and wrkque.cntgrp is null
+                        and @+wrkque.adddte:date
+                        and @+wrkque.issdte:date
+                        and @+wrkque.ackdte:date
+                        and @+wrkque.pckdte:date
+                        and @+wrkque.depdte:date
+                        and @+wrkque.lstescdte:date
+                        and @+wrkque.lodnum
+                        and @+wrkque.lodlvl
+                        and @+wrkque.ackdevcod
+                        and @+wrkque.dstloc
+                        and @+wrkque.lblbat
+                        and @+wrkque.wrkref
+                        and @+wrkque.refloc
+                        and @+wrkque.srcloc
+                        and @+wrkque.wh_id
+                        and @+wrkque.client_id
+                        and @+wrkque.list_id
+                        and @+wrkque.schbat
+                        and @+wrkque.src_wrk_zone_id
+                        and @+pckwrk_view.ordnum
+                        and @+pckwrk_view.ship_id
+                        and @+pckwrk_view.revlvl
+                        and @+pckwrk_view.rtcust
+                        and @+pckwrk_view.ship_line_id
+                        and @+pckwrk_view.slot
+                        and @+pckwrk_view.splflg
+                        and @+pckwrk_view.ordlin
+                        and @+pckwrk_view.ordsln
+                        and @+pckwrk_view.orgcod
+                        and @+pckwrk_view.pallet_id
+                        and @+pckwrk_view.pallet_load_seq
+                        and @+pckwrk_view.pallet_pos
+                        and @+pckwrk_view.pck_catch_qty
+                        and @+pckwrk_view.pckqty
+                        and @+pckwrk_view.pcksts
+                        and @+pckwrk_view.invsts
+                        and @+pckwrk_view.invsts_prg
+                        and @+pckwrk_view.list_seqnum
+                        and @+pckwrk_view.lotnum
+                        and @+pckwrk_view.inv_attr_str1
+                        and @+pckwrk_view.inv_attr_str2
+                        and @+pckwrk_view.inv_attr_str3
+                        and @+pckwrk_view.inv_attr_str4
+                        and @+pckwrk_view.inv_attr_str5
+                        and @+pckwrk_view.inv_attr_str6
+                        and @+pckwrk_view.inv_attr_str7
+                        and @+pckwrk_view.inv_attr_str8
+                        and @+pckwrk_view.inv_attr_str9
+                        and @+pckwrk_view.inv_attr_str10
+                        and @+pckwrk_view.inv_attr_str11
+                        and @+pckwrk_view.inv_attr_str12
+                        and @+pckwrk_view.inv_attr_str13
+                        and @+pckwrk_view.inv_attr_str14
+                        and @+pckwrk_view.inv_attr_str15
+                        and @+pckwrk_view.inv_attr_str16
+                        and @+pckwrk_view.inv_attr_str17
+                        and @+pckwrk_view.inv_attr_str18
+                        and @+pckwrk_view.inv_attr_int1
+                        and @+pckwrk_view.inv_attr_int2
+                        and @+pckwrk_view.inv_attr_int3
+                        and @+pckwrk_view.inv_attr_int4
+                        and @+pckwrk_view.inv_attr_int5
+                        and @+pckwrk_view.inv_attr_flt1
+                        and @+pckwrk_view.inv_attr_flt2
+                        and @+pckwrk_view.inv_attr_flt3
+                        and @+pckwrk_view.inv_attr_dte1:date
+                        and @+pckwrk_view.inv_attr_dte2:date
+                        and @+pckwrk_view.min_shelf_hrs
+                        and @+pckwrk_view.bto_seqnum
+                        and @+pckwrk_view.cmbcod
+                        and @+pckwrk_view.concod
+                        and @+pckwrk_view.dst_mov_zone_id
+                        and @+pckwrk_view.stcust
+                        and @+pckwrk_view.supnum
+                        and @+pckwrk_view.untcas
+                        and @+pckwrk_view.untpak
+                        and @+pckwrk_view.wkolin
+                        and @+pckwrk_view.wkonum
+                        and @+pckwrk_view.wkorev
+                        and @+pckwrk_view.frsflg
+                        and @+pckwrk_view.ftpcod
+                        and @+pckwrk_view.ship_ctncod
+                        and @+pckwrk_view.ship_ctnnum
+                        and @+rplwrk.alcdte
+                        and @+ord.entdte
+                        and @+ord.crncy_code
+                        and @+ord.rrlflg
+                        and @+ord.rt_adr_id
+                        and @+shipment.srvlvl
+                        and @+shipment.host_ext_id
+                        and @+shipment.stop_id
+                        and @+shipment.doc_num
+                        and @+shipment.track_num
+                        and @+shipment.host_client_id
+                        and @+shipment.host_exit_id
+                        and @+shipment.carcod
+                        and @+shipment.srvlvl
+                        and @+shipment.rate_serv_nam
+                        and @+shipment.arcdte
+                        and @+shipment.arc_src
+                        and @+car_move.car_move_id
+                        and @+wrkque.oprcod
+                        and (wrkque.client_id is null or @client_in_clause:raw)
+                        and @+wrkque.src_wrk_zone_id
+                        and @+wrkque.ctnnum
+                        and @*
+                      group by wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            pckwrk_view.unique_pallet_id,
+                            rplwrk.list_id,
+                            wrkque.rf_out_aud_id,
+                            pckwrk_view.ship_id,
+                            car_move.car_move_id,
+                            wrkque.ctnnum,
+                            appt.start_dte
+                     union
+                     select wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            decode(wrkque.oprcod, 'BPCK', @mlsMultiple, 'TBPCK', @mlsMultiple, wrkque.dstloc) que_dstloc,
+                            null cnt_id,
+                            decode(pckwrk_view.unique_pallet_id, null, 0, 1) palctl_wrk_flg,
+                            decode(rplwrk.list_id, null, 0, 1) pck_exp_flg,
+                            pckwrk_view.ship_id,
+                            decode(count(distinct ord.cponum), 0, '', 1, max(ord.cponum), @mlsMultiple) cponum,
+                            car_move.car_move_id,
+                            wrkque.ctnnum,
+                            appt.start_dte
+                       from wrkque
+                       left outer
+                       join (select invsub.lodnum,
+                                    invsub.subnum,
+                                    shipment_line.ship_id
+                               from invdtl
+                               join invsub
+                                 on invdtl.subnum = invsub.subnum
+                               join shipment_line
+                                 on invdtl.ship_line_id = shipment_line.ship_line_id) ship_id_on_inv
+                         on (ship_id_on_inv.lodnum = wrkque.lodnum or ship_id_on_inv.subnum = wrkque.lodnum)
+                       left outer
+                       join pckwrk_view
+                         on ship_id_on_inv.ship_id = pckwrk_view.ship_id
+                        and pckwrk_view.pcksts != 'C'
+                        and @+pckwrk_view.wh_id
+                       left
+                       join rplwrk
+                         on rplwrk.list_id = wrkque.list_id
+                       left outer
+                       join ord
+                         on pckwrk_view.ordnum = ord.ordnum
+                        and pckwrk_view.client_id = ord.client_id
+                        and pckwrk_view.wh_id = ord.wh_id
+                       left outer
+                       join shipment
+                         on shipment.ship_id = pckwrk_view.ship_id
+                       left outer
+                       join stop
+                         on (shipment.stop_id = stop.stop_id or wrkque.refloc = stop.stop_id)
+                       left outer
+                       join car_move
+                         on stop.car_move_id = car_move.car_move_id
+                       left
+                       join appt
+                         on car_move.car_move_id = appt.car_move_id
+                      where wrkque.lodnum is not null
+                        and wrkque.schbat is not null
+                        and wrkque.cntgrp is null
+                        and @+wrkque.adddte:date
+                        and @+wrkque.issdte:date
+                        and @+wrkque.ackdte:date
+                        and @+wrkque.pckdte:date
+                        and @+wrkque.depdte:date
+                        and @+wrkque.lstescdte:date
+                        and @+wrkque.lodnum
+                        and @+wrkque.lodlvl
+                        and @+wrkque.ackdevcod
+                        and @+wrkque.dstloc
+                        and @+wrkque.lblbat
+                        and @+wrkque.wrkref
+                        and @+wrkque.refloc
+                        and @+wrkque.srcloc
+                        and @+wrkque.wh_id
+                        and @+wrkque.client_id
+                        and @+wrkque.list_id
+                        and @+wrkque.schbat
+                        and @+wrkque.src_wrk_zone_id
+                        and @+pckwrk_view.ordnum
+                        and @+pckwrk_view.ship_id
+                        and @+pckwrk_view.revlvl
+                        and @+pckwrk_view.rtcust
+                        and @+pckwrk_view.ship_line_id
+                        and @+pckwrk_view.slot
+                        and @+pckwrk_view.splflg
+                        and @+pckwrk_view.ordlin
+                        and @+pckwrk_view.ordsln
+                        and @+pckwrk_view.orgcod
+                        and @+pckwrk_view.pallet_id
+                        and @+pckwrk_view.pallet_load_seq
+                        and @+pckwrk_view.pallet_pos
+                        and @+pckwrk_view.pck_catch_qty
+                        and @+pckwrk_view.pckqty
+                        and @+pckwrk_view.pcksts
+                        and @+pckwrk_view.invsts
+                        and @+pckwrk_view.invsts_prg
+                        and @+pckwrk_view.list_seqnum
+                        and @+pckwrk_view.lotnum
+                        and @+pckwrk_view.inv_attr_str1
+                        and @+pckwrk_view.inv_attr_str2
+                        and @+pckwrk_view.inv_attr_str3
+                        and @+pckwrk_view.inv_attr_str4
+                        and @+pckwrk_view.inv_attr_str5
+                        and @+pckwrk_view.inv_attr_str6
+                        and @+pckwrk_view.inv_attr_str7
+                        and @+pckwrk_view.inv_attr_str8
+                        and @+pckwrk_view.inv_attr_str9
+                        and @+pckwrk_view.inv_attr_str10
+                        and @+pckwrk_view.inv_attr_str11
+                        and @+pckwrk_view.inv_attr_str12
+                        and @+pckwrk_view.inv_attr_str13
+                        and @+pckwrk_view.inv_attr_str14
+                        and @+pckwrk_view.inv_attr_str15
+                        and @+pckwrk_view.inv_attr_str16
+                        and @+pckwrk_view.inv_attr_str17
+                        and @+pckwrk_view.inv_attr_str18
+                        and @+pckwrk_view.inv_attr_int1
+                        and @+pckwrk_view.inv_attr_int2
+                        and @+pckwrk_view.inv_attr_int3
+                        and @+pckwrk_view.inv_attr_int4
+                        and @+pckwrk_view.inv_attr_int5
+                        and @+pckwrk_view.inv_attr_flt1
+                        and @+pckwrk_view.inv_attr_flt2
+                        and @+pckwrk_view.inv_attr_flt3
+                        and @+pckwrk_view.inv_attr_dte1:date
+                        and @+pckwrk_view.inv_attr_dte2:date
+                        and @+pckwrk_view.min_shelf_hrs
+                        and @+pckwrk_view.bto_seqnum
+                        and @+pckwrk_view.cmbcod
+                        and @+pckwrk_view.concod
+                        and @+pckwrk_view.dst_mov_zone_id
+                        and @+pckwrk_view.stcust
+                        and @+pckwrk_view.supnum
+                        and @+pckwrk_view.untcas
+                        and @+pckwrk_view.untpak
+                        and @+pckwrk_view.wkolin
+                        and @+pckwrk_view.wkonum
+                        and @+pckwrk_view.wkorev
+                        and @+pckwrk_view.frsflg
+                        and @+pckwrk_view.ftpcod
+                        and @+pckwrk_view.ship_ctncod
+                        and @+pckwrk_view.ship_ctnnum
+                        and @+rplwrk.alcdte
+                        and @+ord.entdte
+                        and @+ord.crncy_code
+                        and @+ord.rrlflg
+                        and @+ord.rt_adr_id
+                        and @+shipment.srvlvl
+                        and @+shipment.host_ext_id
+                        and @+shipment.stop_id
+                        and @+shipment.doc_num
+                        and @+shipment.track_num
+                        and @+shipment.host_client_id
+                        and @+shipment.host_exit_id
+                        and @+shipment.carcod
+                        and @+shipment.srvlvl
+                        and @+shipment.rate_serv_nam
+                        and @+shipment.arcdte
+                        and @+shipment.arc_src
+                        and @+car_move.car_move_id
+                        and @+wrkque.oprcod
+                        and (wrkque.client_id is null or @client_in_clause:raw)
+                        and @+wrkque.src_wrk_zone_id
+                        and @+wrkque.ctnnum
+                        and @*
+                      group by wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            pckwrk_view.unique_pallet_id,
+                            rplwrk.list_id,
+                            wrkque.rf_out_aud_id,
+                            pckwrk_view.ship_id,
+                            car_move.car_move_id,
+                            wrkque.ctnnum,
+                            appt.start_dte
+                     union
+                     select wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            decode(wrkque.oprcod, 'BPCK', @mlsMultiple, 'TBPCK', @mlsMultiple, wrkque.dstloc) que_dstloc,
+                            tmp.cnt_id,
+                            0 palctl_wrk_flg,
+                            0 pck_exp_flg,
+                            null ship_id,
+                            null cponum,
+                            null car_move_id,
+                            wrkque.ctnnum,
+                            sysdate start_dte
+                       from wrkque
+                       left
+                       join (select distinct cw.*,
+                                    ch.cnt_id
+                               from cntwrk cw,
+                                    cnthdr ch
+                              where cw.cntbat = ch.cntbat
+                                and cw.wh_id = ch.wh_id
+                                and @+ch.wh_id) tmp
+                         on tmp.cntgrp = wrkque.cntgrp
+                        and tmp.stoloc = wrkque.srcloc
+                      where wrkque.cntgrp is not null
+                        and @-ship_id is null
+                        and @-cponum is null
+                        and @-car_move_id is null
+                        and @-ship_ctnnum is null
+                        and @-ship_ctncod is null
+                        and @+wrkque.adddte:date
+                        and @+wrkque.issdte:date
+                        and @+wrkque.ackdte:date
+                        and @+wrkque.pckdte:date
+                        and @+wrkque.depdte:date
+                        and @+wrkque.lstescdte:date
+                        and @+wrkque.lodnum
+                        and @+wrkque.lodlvl
+                        and @+wrkque.ackdevcod
+                        and @+wrkque.dstloc
+                        and @+wrkque.lblbat
+                        and @+wrkque.wrkref
+                        and @+wrkque.refloc
+                        and @+wrkque.srcloc
+                        and @+wrkque.wh_id
+                        and @+wrkque.client_id
+                        and @+wrkque.cntgrp
+                        and @+wrkque.list_id
+                        and @+wrkque.schbat
+                        and @+wrkque.src_wrk_zone_id
+                        and @+tmp.cntbat
+                        and @+tmp.inval1
+                        and @+tmp.inval2
+                        and @+tmp.inval3
+                        and @+tmp.inval4
+                        and @+tmp.inval5
+                        and @+tmp.inval6
+                        and @+tmp.inval7
+                        and @+tmp.inval8
+                        and @+tmp.inval9
+                        and @+tmp.inval10
+                        and @+tmp.inval11
+                        and @+tmp.inval12
+                        and @+tmp.inval13
+                        and @+tmp.inval14
+                        and @+tmp.inval15
+                        and @+tmp.inval16
+                        and @+tmp.inval17
+                        and @+tmp.inval18
+                        and @+tmp.inval19
+                        and @+tmp.inval20
+                        and @+tmp.inval21
+                        and @+tmp.inval22
+                        and @+tmp.inval23
+                        and @+tmp.inval24
+                        and @+tmp.inval25
+                        and @+tmp.inval26
+                        and @+tmp.inval27
+                        and @+tmp.inval28
+                        and @+tmp.inval29
+                        and @+tmp.inval30
+                        and @+tmp.inval31
+                        and @+tmp.inval32
+                        and @+tmp.inval33
+                        and @+tmp.inval34
+                        and @+tmp.mod_usr_id
+                        and @+tmp.moddte
+                        and @+tmp.prt_client_id
+                        and @+tmp.prtnum
+                        and @+wrkque.oprcod
+                        and (wrkque.client_id is null or @client_in_clause:raw)
+                        and @+wrkque.src_wrk_zone_id
+                        and @+wrkque.ctnnum
+                        and @*
+                      group by wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            tmp.cnt_id,
+                            wrkque.rf_out_aud_id,
+                            wrkque.ctnnum) temp1
+              where @filterByClause:raw
+              order by @sortOrderClause:raw]
+        }
+        else
+        {
+            [/*#limit=@offset,@limit,true*/
+             select temp1.reqnum,
+                    temp1.wrksts,
+                    temp1.baspri,
+                    temp1.effpri,
+                    temp1.wh_id,
+                    temp1.oprcod,
+                    temp1.srcloc,
+                    temp1.dstloc,
+                    temp1.client_id,
+                    temp1.lodlvl,
+                    temp1.ack_usr_id,
+                    temp1.ackdevcod,
+                    temp1.lodnum,
+                    temp1.adddte,
+                    temp1.asg_role_id,
+                    temp1.asg_usr_id,
+                    temp1.batnum,
+                    temp1.cntgrp,
+                    temp1.depdte,
+                    temp1.issdte,
+                    temp1.lblbat,
+                    temp1.locacc,
+                    temp1.lstescdte,
+                    temp1.pckdte,
+                    temp1.ackdte,
+                    temp1.wrkref,
+                    temp1.refloc,
+                    temp1.src_wrk_zone_id,
+                    temp1.srcwrkare,
+                    temp1.loctrvseq,
+                    temp1.zontrvseq,
+                    temp1.schbat,
+                    temp1.list_id,
+                    temp1.src_bldg_id,
+                    temp1.src_aisle_id,
+                    temp1.que_dstloc,
+                    temp1.cnt_id,
+                    temp1.palctl_wrk_flg,
+                    temp1.pck_exp_flg,
+                    temp1.ship_id,
+                    temp1.cponum,
+                    temp1.car_move_id,
+                    temp1.ctnnum,
+                    temp1.start_dte
+               from (select distinct wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            decode(wrkque.oprcod, 'BPCK', @mlsMultiple, 'TBPCK', @mlsMultiple, wrkque.dstloc) que_dstloc,
+                            tmp.cnt_id,
+                            0 palctl_wrk_flg,
+                            0 pck_exp_flg,
+                            null ship_id,
+                            null cponum,
+                            null car_move_id,
+                            wrkque.ctnnum,
+                            sysdate start_dte
+                       from wrkque
+                       left
+                       join (select distinct cw.*,
+                                    ch.cnt_id
+                               from cntwrk cw,
+                                    cnthdr ch
+                              where cw.cntbat = ch.cntbat
+                                and cw.wh_id = ch.wh_id
+                                and @+ch.wh_id) tmp
+                         on tmp.cntgrp = wrkque.cntgrp
+                        and tmp.stoloc = wrkque.srcloc
+                      where wrkque.cntgrp is not null
+                        and @-ship_id is null
+                        and @-cponum is null
+                        and @-car_move_id is null
+                        and @+wrkque.adddte:date
+                        and @+wrkque.issdte:date
+                        and @+wrkque.ackdte:date
+                        and @+wrkque.pckdte:date
+                        and @+wrkque.depdte:date
+                        and @+wrkque.lstescdte:date
+                        and @+wrkque.lodnum
+                        and @+wrkque.lodlvl
+                        and @+wrkque.ackdevcod
+                        and @+wrkque.dstloc
+                        and @+wrkque.lblbat
+                        and @+wrkque.wrkref
+                        and @+wrkque.refloc
+                        and @+wrkque.srcloc
+                        and @+wrkque.wh_id
+                        and @+wrkque.client_id
+                        and @+wrkque.cntgrp
+                        and @+wrkque.list_id
+                        and @+wrkque.schbat
+                        and @+wrkque.src_wrk_zone_id
+                        and @+tmp.cntbat
+                        and @+tmp.inval1
+                        and @+tmp.inval2
+                        and @+tmp.inval3
+                        and @+tmp.inval4
+                        and @+tmp.inval5
+                        and @+tmp.inval6
+                        and @+tmp.inval7
+                        and @+tmp.inval8
+                        and @+tmp.inval9
+                        and @+tmp.inval10
+                        and @+tmp.inval11
+                        and @+tmp.inval12
+                        and @+tmp.inval13
+                        and @+tmp.inval14
+                        and @+tmp.inval15
+                        and @+tmp.inval16
+                        and @+tmp.inval17
+                        and @+tmp.inval18
+                        and @+tmp.inval19
+                        and @+tmp.inval20
+                        and @+tmp.inval21
+                        and @+tmp.inval22
+                        and @+tmp.inval23
+                        and @+tmp.inval24
+                        and @+tmp.inval25
+                        and @+tmp.inval26
+                        and @+tmp.inval27
+                        and @+tmp.inval28
+                        and @+tmp.inval29
+                        and @+tmp.inval30
+                        and @+tmp.inval31
+                        and @+tmp.inval32
+                        and @+tmp.inval33
+                        and @+tmp.inval34
+                        and @+tmp.mod_usr_id
+                        and @+tmp.moddte
+                        and @+tmp.prt_client_id
+                        and @+tmp.prtnum
+                        and @+wrkque.oprcod
+                        and (wrkque.client_id is null or @client_in_clause:raw)
+                        and @+tmp.cnt_id
+                        and @+wrkque.src_wrk_zone_id
+                        and @+wrkque.ctnnum
+                        and @*
+                      group by wrkque.reqnum,
+                            wrkque.wrksts,
+                            wrkque.baspri,
+                            wrkque.effpri,
+                            wrkque.wh_id,
+                            wrkque.oprcod,
+                            wrkque.srcloc,
+                            wrkque.dstloc,
+                            wrkque.client_id,
+                            wrkque.lodlvl,
+                            wrkque.ack_usr_id,
+                            wrkque.ackdevcod,
+                            wrkque.lodnum,
+                            wrkque.adddte,
+                            wrkque.asg_role_id,
+                            wrkque.asg_usr_id,
+                            wrkque.batnum,
+                            wrkque.cntgrp,
+                            wrkque.depdte,
+                            wrkque.issdte,
+                            wrkque.lblbat,
+                            wrkque.locacc,
+                            wrkque.lstescdte,
+                            wrkque.pckdte,
+                            wrkque.ackdte,
+                            wrkque.wrkref,
+                            wrkque.refloc,
+                            wrkque.src_wrk_zone_id,
+                            wrkque.srcwrkare,
+                            wrkque.loctrvseq,
+                            wrkque.zontrvseq,
+                            wrkque.schbat,
+                            wrkque.list_id,
+                            wrkque.src_bldg_id,
+                            wrkque.src_aisle_id,
+                            tmp.cnt_id,
+                            wrkque.rf_out_aud_id,
+                            wrkque.ctnnum) temp1
+              where @filterByClause:raw
+              order by @sortOrderClause:raw]
+        }
+    }
+    else if (@-cnt_id is null)
+    {
+        [/*#limit=@offset,@limit,true*/
+         select temp1.reqnum,
+                temp1.wrksts,
+                temp1.baspri,
+                temp1.effpri,
+                temp1.wh_id,
+                temp1.oprcod,
+                temp1.srcloc,
+                temp1.dstloc,
+                temp1.client_id,
+                temp1.lodlvl,
+                temp1.ack_usr_id,
+                temp1.ackdevcod,
+                temp1.lodnum,
+                temp1.adddte,
+                temp1.asg_role_id,
+                temp1.asg_usr_id,
+                temp1.batnum,
+                temp1.cntgrp,
+                temp1.depdte,
+                temp1.issdte,
+                temp1.lblbat,
+                temp1.locacc,
+                temp1.lstescdte,
+                temp1.pckdte,
+                temp1.ackdte,
+                temp1.wrkref,
+                temp1.refloc,
+                temp1.src_wrk_zone_id,
+                temp1.srcwrkare,
+                temp1.loctrvseq,
+                temp1.zontrvseq,
+                temp1.schbat,
+                temp1.list_id,
+                temp1.src_bldg_id,
+                temp1.src_aisle_id,
+                temp1.que_dstloc,
+                temp1.cnt_id,
+                temp1.palctl_wrk_flg,
+                temp1.pck_exp_flg,
+                temp1.ship_id,
+                temp1.cponum,
+                temp1.car_move_id,
+                temp1.ctnnum,
+                temp1.start_dte
+           from (select wrkque.reqnum,
+                        wrkque.wrksts,
+                        wrkque.baspri,
+                        wrkque.effpri,
+                        wrkque.wh_id,
+                        wrkque.oprcod,
+                        wrkque.srcloc,
+                        wrkque.dstloc,
+                        wrkque.client_id,
+                        wrkque.lodlvl,
+                        wrkque.ack_usr_id,
+                        wrkque.ackdevcod,
+                        wrkque.lodnum,
+                        wrkque.adddte,
+                        wrkque.asg_role_id,
+                        wrkque.asg_usr_id,
+                        wrkque.batnum,
+                        wrkque.cntgrp,
+                        wrkque.depdte,
+                        wrkque.issdte,
+                        wrkque.lblbat,
+                        wrkque.locacc,
+                        wrkque.lstescdte,
+                        wrkque.pckdte,
+                        wrkque.ackdte,
+                        wrkque.wrkref,
+                        wrkque.refloc,
+                        wrkque.src_wrk_zone_id,
+                        wrkque.srcwrkare,
+                        wrkque.loctrvseq,
+                        wrkque.zontrvseq,
+                        wrkque.schbat,
+                        wrkque.list_id,
+                        wrkque.src_bldg_id,
+                        wrkque.src_aisle_id,
+                        decode(wrkque.oprcod, 'BPCK', @mlsMultiple, 'TBPCK', @mlsMultiple, wrkque.dstloc) que_dstloc,
+                        null cnt_id,
+                        decode(pckwrk_view.unique_pallet_id, null, 0, 1) palctl_wrk_flg,
+                        0 pck_exp_flg,
+                        pckwrk_view.ship_id,
+                        decode(count(distinct ord.cponum), 0, '', 1, max(ord.cponum), @mlsMultiple) cponum,
+                        car_move.car_move_id,
+                        wrkque.ctnnum,
+                        appt.start_dte
+                   from wrkque
+                   join pckwrk_view
+                     on wrkque.wrkref = pckwrk_view.wrkref
+                   left
+                   join ord
+                     on pckwrk_view.ordnum = ord.ordnum
+                    and pckwrk_view.client_id = ord.client_id
+                    and pckwrk_view.wh_id = ord.wh_id
+                   left
+                   join shipment
+                     on shipment.ship_id = pckwrk_view.ship_id
+                   left
+                   join stop
+                     on (shipment.stop_id = stop.stop_id or wrkque.refloc = stop.stop_id)
+                   left
+                   join car_move
+                     on stop.car_move_id = car_move.car_move_id
+                   left
+                   join appt
+                     on car_move.car_move_id = appt.car_move_id
+                   left
+                   join appt
+                     on car_move.car_move_id = appt.car_move_id
+                  where wrkque.list_id is NULL
+                    and wrkque.lblbat is NULL
+                    and (wrkque.client_id is null or @client_in_clause:raw)
+                    and pckwrk_view.lblbat is NULL
+                    and @+wrkque.adddte:date
+                    and @+wrkque.issdte:date
+                    and @+wrkque.ackdte:date
+                    and @+wrkque.pckdte:date
+                    and @+wrkque.depdte:date
+                    and @+wrkque.lstescdte:date
+                    and @+wrkque.lodnum
+                    and @+wrkque.lodlvl
+                    and @+wrkque.ackdevcod
+                    and @+wrkque.dstloc
+                    and @+wrkque.lblbat
+                    and @+wrkque.wrkref
+                    and @+wrkque.refloc
+                    and @+wrkque.srcloc
+                    and @+wrkque.wh_id
+                    and @+wrkque.client_id
+                    and @+wrkque.list_id
+                    and @+wrkque.schbat
+                    and @+wrkque.cntgrp
+                    and @+wrkque.src_wrk_zone_id
+                    and @+pckwrk_view.revlvl
+                    and @+pckwrk_view.rtcust
+                    and @+pckwrk_view.ship_line_id
+                    and @+pckwrk_view.slot
+                    and @+pckwrk_view.splflg
+                    and @+pckwrk_view.ordlin
+                    and @+pckwrk_view.ordsln
+                    and @+pckwrk_view.orgcod
+                    and @+pckwrk_view.pallet_id
+                    and @+pckwrk_view.pallet_load_seq
+                    and @+pckwrk_view.pallet_pos
+                    and @+pckwrk_view.pck_catch_qty
+                    and @+pckwrk_view.pckqty
+                    and @+pckwrk_view.pcksts
+                    and @+pckwrk_view.invsts
+                    and @+pckwrk_view.invsts_prg
+                    and @+pckwrk_view.list_seqnum
+                    and @+pckwrk_view.lotnum
+                    and @+pckwrk_view.inv_attr_str1
+                    and @+pckwrk_view.inv_attr_str2
+                    and @+pckwrk_view.inv_attr_str3
+                    and @+pckwrk_view.inv_attr_str4
+                    and @+pckwrk_view.inv_attr_str5
+                    and @+pckwrk_view.inv_attr_str6
+                    and @+pckwrk_view.inv_attr_str7
+                    and @+pckwrk_view.inv_attr_str8
+                    and @+pckwrk_view.inv_attr_str9
+                    and @+pckwrk_view.inv_attr_str10
+                    and @+pckwrk_view.inv_attr_str11
+                    and @+pckwrk_view.inv_attr_str12
+                    and @+pckwrk_view.inv_attr_str13
+                    and @+pckwrk_view.inv_attr_str14
+                    and @+pckwrk_view.inv_attr_str15
+                    and @+pckwrk_view.inv_attr_str16
+                    and @+pckwrk_view.inv_attr_str17
+                    and @+pckwrk_view.inv_attr_str18
+                    and @+pckwrk_view.inv_attr_int1
+                    and @+pckwrk_view.inv_attr_int2
+                    and @+pckwrk_view.inv_attr_int3
+                    and @+pckwrk_view.inv_attr_int4
+                    and @+pckwrk_view.inv_attr_int5
+                    and @+pckwrk_view.inv_attr_flt1
+                    and @+pckwrk_view.inv_attr_flt2
+                    and @+pckwrk_view.inv_attr_flt3
+                    and @+pckwrk_view.inv_attr_dte1:date
+                    and @+pckwrk_view.inv_attr_dte2:date
+                    and @+pckwrk_view.min_shelf_hrs
+                    and @+pckwrk_view.bto_seqnum
+                    and @+pckwrk_view.cmbcod
+                    and @+pckwrk_view.concod
+                    and @+pckwrk_view.dst_mov_zone_id
+                    and @+pckwrk_view.stcust
+                    and @+pckwrk_view.supnum
+                    and @+pckwrk_view.untcas
+                    and @+pckwrk_view.untpak
+                    and @+pckwrk_view.wkolin
+                    and @+pckwrk_view.wkonum
+                    and @+pckwrk_view.wkorev
+                    and @+pckwrk_view.frsflg
+                    and @+pckwrk_view.ftpcod
+                    and @+pckwrk_view.ordnum
+                    and @+pckwrk_view.ship_ctncod
+                    and @+pckwrk_view.ship_ctnnum
+                    and @+rplwrk.alcdte
+                    and @+ord.entdte
+                    and @+ord.crncy_code
+                    and @+ord.rrlflg
+                    and @+ord.rt_adr_id
+                    and @+ord.cponum
+                    and @+ord.rush_flg
+                    and @+pckwrk_view.ship_id
+                    and @+car_move.car_move_id
+                    and @+shipment.stop_id
+                    and @+shipment.doc_num
+                    and @+shipment.track_num
+                    and @+shipment.host_client_id
+                    and @+shipment.host_exit_id
+                    and @+shipment.carcod
+                    and @+shipment.srvlvl
+                    and @+shipment.rate_serv_nam
+                    and @+shipment.arcdte
+                    and @+shipment.arc_src
+                    and @+shipment.srvlvl
+                    and @+shipment.host_ext_id
+                    and @+stop.car_move_id
+                    and @+wrkque.oprcod
+                    and @+wrkque.src_wrk_zone_id
+                    and @+wrkque.ctnnum
+                    and @*
+                  group by wrkque.reqnum,
+                        wrkque.wrksts,
+                        wrkque.baspri,
+                        wrkque.effpri,
+                        wrkque.wh_id,
+                        wrkque.oprcod,
+                        wrkque.srcloc,
+                        wrkque.dstloc,
+                        wrkque.client_id,
+                        wrkque.lodlvl,
+                        wrkque.ack_usr_id,
+                        wrkque.ackdevcod,
+                        wrkque.lodnum,
+                        wrkque.adddte,
+                        wrkque.asg_role_id,
+                        wrkque.asg_usr_id,
+                        wrkque.batnum,
+                        wrkque.cntgrp,
+                        wrkque.depdte,
+                        wrkque.issdte,
+                        wrkque.lblbat,
+                        wrkque.locacc,
+                        wrkque.lstescdte,
+                        wrkque.pckdte,
+                        wrkque.ackdte,
+                        wrkque.wrkref,
+                        wrkque.refloc,
+                        wrkque.src_wrk_zone_id,
+                        wrkque.srcwrkare,
+                        wrkque.loctrvseq,
+                        wrkque.zontrvseq,
+                        wrkque.schbat,
+                        wrkque.list_id,
+                        wrkque.src_bldg_id,
+                        wrkque.src_aisle_id,
+                        pckwrk_view.unique_pallet_id,
+                        wrkque.rf_out_aud_id,
+                        pckwrk_view.ship_id,
+                        car_move.car_move_id,
+                        wrkque.ctnnum,
+                        appt.start_dte
+                 union
+                 select wrkque.reqnum,
+                        wrkque.wrksts,
+                        wrkque.baspri,
+                        wrkque.effpri,
+                        wrkque.wh_id,
+                        wrkque.oprcod,
+                        wrkque.srcloc,
+                        wrkque.dstloc,
+                        wrkque.client_id,
+                        wrkque.lodlvl,
+                        wrkque.ack_usr_id,
+                        wrkque.ackdevcod,
+                        wrkque.lodnum,
+                        wrkque.adddte,
+                        wrkque.asg_role_id,
+                        wrkque.asg_usr_id,
+                        wrkque.batnum,
+                        wrkque.cntgrp,
+                        wrkque.depdte,
+                        wrkque.issdte,
+                        wrkque.lblbat,
+                        wrkque.locacc,
+                        wrkque.lstescdte,
+                        wrkque.pckdte,
+                        wrkque.ackdte,
+                        wrkque.wrkref,
+                        wrkque.refloc,
+                        wrkque.src_wrk_zone_id,
+                        wrkque.srcwrkare,
+                        wrkque.loctrvseq,
+                        wrkque.zontrvseq,
+                        wrkque.schbat,
+                        wrkque.list_id,
+                        wrkque.src_bldg_id,
+                        wrkque.src_aisle_id,
+                        decode(wrkque.oprcod, 'BPCK', @mlsMultiple, 'TBPCK', @mlsMultiple, wrkque.dstloc) que_dstloc,
+                        null cnt_id,
+                        decode(pckwrk_view.unique_pallet_id, null, 0, 1) palctl_wrk_flg,
+                        0 pck_exp_flg,
+                        pckwrk_view.ship_id,
+                        decode(count(distinct ord.cponum), 0, '', 1, max(ord.cponum), @mlsMultiple) cponum,
+                        car_move.car_move_id,
+                        wrkque.ctnnum,
+                        appt.start_dte
+                   from wrkque
+                   join pckwrk_view
+                     on wrkque.wrkref = pckwrk_view.wrkref
+                   left
+                   join ord
+                     on pckwrk_view.ordnum = ord.ordnum
+                    and pckwrk_view.client_id = ord.client_id
+                    and pckwrk_view.wh_id = ord.wh_id
+                   left
+                   join shipment
+                     on shipment.ship_id = pckwrk_view.ship_id
+                   left
+                   join stop
+                     on (shipment.stop_id = stop.stop_id or wrkque.refloc = stop.stop_id)
+                   left
+                   join car_move
+                     on stop.car_move_id = car_move.car_move_id
+                   left
+                   join appt
+                     on car_move.car_move_id = appt.car_move_id
+                  where wrkque.list_id is NULL
+                    and wrkque.lblbat is not NULL
+                    and (wrkque.client_id is null or @client_in_clause:raw)
+                    and pckwrk_view.lblbat is not NULL
+                    and pckwrk_view.lblbat in (select pick.lblbat
+                                                 from pckwrk_view pick
+                                                where @+pick.ordnum)
+                    and @+wrkque.adddte:date
+                    and @+wrkque.issdte:date
+                    and @+wrkque.ackdte:date
+                    and @+wrkque.pckdte:date
+                    and @+wrkque.depdte:date
+                    and @+wrkque.lstescdte:date
+                    and @+wrkque.lodnum
+                    and @+wrkque.lodlvl
+                    and @+wrkque.ackdevcod
+                    and @+wrkque.dstloc
+                    and @+wrkque.lblbat
+                    and @+wrkque.wrkref
+                    and @+wrkque.refloc
+                    and @+wrkque.srcloc
+                    and @+wrkque.wh_id
+                    and @+wrkque.client_id
+                    and @+wrkque.list_id
+                    and @+wrkque.schbat
+                    and @+wrkque.cntgrp
+                    and @+wrkque.src_wrk_zone_id
+                    and @+pckwrk_view.revlvl
+                    and @+pckwrk_view.rtcust
+                    and @+pckwrk_view.ship_line_id
+                    and @+pckwrk_view.slot
+                    and @+pckwrk_view.splflg
+                    and @+pckwrk_view.ordlin
+                    and @+pckwrk_view.ordsln
+                    and @+pckwrk_view.orgcod
+                    and @+pckwrk_view.pallet_id
+                    and @+pckwrk_view.pallet_load_seq
+                    and @+pckwrk_view.pallet_pos
+                    and @+pckwrk_view.pck_catch_qty
+                    and @+pckwrk_view.pckqty
+                    and @+pckwrk_view.pcksts
+                    and @+pckwrk_view.invsts
+                    and @+pckwrk_view.invsts_prg
+                    and @+pckwrk_view.list_seqnum
+                    and @+pckwrk_view.lotnum
+                    and @+pckwrk_view.inv_attr_str1
+                    and @+pckwrk_view.inv_attr_str2
+                    and @+pckwrk_view.inv_attr_str3
+                    and @+pckwrk_view.inv_attr_str4
+                    and @+pckwrk_view.inv_attr_str5
+                    and @+pckwrk_view.inv_attr_str6
+                    and @+pckwrk_view.inv_attr_str7
+                    and @+pckwrk_view.inv_attr_str8
+                    and @+pckwrk_view.inv_attr_str9
+                    and @+pckwrk_view.inv_attr_str10
+                    and @+pckwrk_view.inv_attr_str11
+                    and @+pckwrk_view.inv_attr_str12
+                    and @+pckwrk_view.inv_attr_str13
+                    and @+pckwrk_view.inv_attr_str14
+                    and @+pckwrk_view.inv_attr_str15
+                    and @+pckwrk_view.inv_attr_str16
+                    and @+pckwrk_view.inv_attr_str17
+                    and @+pckwrk_view.inv_attr_str18
+                    and @+pckwrk_view.inv_attr_int1
+                    and @+pckwrk_view.inv_attr_int2
+                    and @+pckwrk_view.inv_attr_int3
+                    and @+pckwrk_view.inv_attr_int4
+                    and @+pckwrk_view.inv_attr_int5
+                    and @+pckwrk_view.inv_attr_flt1
+                    and @+pckwrk_view.inv_attr_flt2
+                    and @+pckwrk_view.inv_attr_flt3
+                    and @+pckwrk_view.inv_attr_dte1:date
+                    and @+pckwrk_view.inv_attr_dte2:date
+                    and @+pckwrk_view.min_shelf_hrs
+                    and @+pckwrk_view.bto_seqnum
+                    and @+pckwrk_view.cmbcod
+                    and @+pckwrk_view.concod
+                    and @+pckwrk_view.dst_mov_zone_id
+                    and @+pckwrk_view.stcust
+                    and @+pckwrk_view.supnum
+                    and @+pckwrk_view.untcas
+                    and @+pckwrk_view.untpak
+                    and @+pckwrk_view.wkolin
+                    and @+pckwrk_view.wkonum
+                    and @+pckwrk_view.wkorev
+                    and @+pckwrk_view.frsflg
+                    and @+pckwrk_view.ftpcod
+                    and @+pckwrk_view.ordnum
+                    and @+pckwrk_view.ship_id
+                    and @+pckwrk_view.ship_ctncod
+                    and @+pckwrk_view.ship_ctnnum
+                    and @+rplwrk.alcdte
+                    and @+ord.entdte
+                    and @+ord.crncy_code
+                    and @+ord.rrlflg
+                    and @+ord.rt_adr_id
+                    and @+ord.rush_flg
+                    and @+ord.cponum
+                    and @+car_move.car_move_id
+                    and @+shipment.stop_id
+                    and @+shipment.doc_num
+                    and @+shipment.track_num
+                    and @+shipment.host_client_id
+                    and @+shipment.host_exit_id
+                    and @+shipment.carcod
+                    and @+shipment.srvlvl
+                    and @+shipment.rate_serv_nam
+                    and @+shipment.arcdte
+                    and @+shipment.arc_src
+                    and @+shipment.srvlvl
+                    and @+shipment.host_ext_id
+                    and @+wrkque.oprcod
+                    and @+wrkque.src_wrk_zone_id
+                    and @+wrkque.ctnnum
+                    and @*
+                  group by wrkque.reqnum,
+                        wrkque.wrksts,
+                        wrkque.baspri,
+                        wrkque.effpri,
+                        wrkque.wh_id,
+                        wrkque.oprcod,
+                        wrkque.srcloc,
+                        wrkque.dstloc,
+                        wrkque.client_id,
+                        wrkque.lodlvl,
+                        wrkque.ack_usr_id,
+                        wrkque.ackdevcod,
+                        wrkque.lodnum,
+                        wrkque.adddte,
+                        wrkque.asg_role_id,
+                        wrkque.asg_usr_id,
+                        wrkque.batnum,
+                        wrkque.cntgrp,
+                        wrkque.depdte,
+                        wrkque.issdte,
+                        wrkque.lblbat,
+                        wrkque.locacc,
+                        wrkque.lstescdte,
+                        wrkque.pckdte,
+                        wrkque.ackdte,
+                        wrkque.wrkref,
+                        wrkque.refloc,
+                        wrkque.src_wrk_zone_id,
+                        wrkque.srcwrkare,
+                        wrkque.loctrvseq,
+                        wrkque.zontrvseq,
+                        wrkque.schbat,
+                        wrkque.list_id,
+                        wrkque.src_bldg_id,
+                        wrkque.src_aisle_id,
+                        pckwrk_view.unique_pallet_id,
+                        wrkque.rf_out_aud_id,
+                        pckwrk_view.ship_id,
+                        car_move.car_move_id,
+                        wrkque.ctnnum,
+                        appt.start_dte
+                 union
+                 select distinct wrkque.reqnum,
+                        wrkque.wrksts,
+                        wrkque.baspri,
+                        wrkque.effpri,
+                        wrkque.wh_id,
+                        wrkque.oprcod,
+                        wrkque.srcloc,
+                        wrkque.dstloc,
+                        wrkque.client_id,
+                        wrkque.lodlvl,
+                        wrkque.ack_usr_id,
+                        wrkque.ackdevcod,
+                        wrkque.lodnum,
+                        wrkque.adddte,
+                        wrkque.asg_role_id,
+                        wrkque.asg_usr_id,
+                        wrkque.batnum,
+                        wrkque.cntgrp,
+                        wrkque.depdte,
+                        wrkque.issdte,
+                        wrkque.lblbat,
+                        wrkque.locacc,
+                        wrkque.lstescdte,
+                        wrkque.pckdte,
+                        wrkque.ackdte,
+                        wrkque.wrkref,
+                        wrkque.refloc,
+                        wrkque.src_wrk_zone_id,
+                        wrkque.srcwrkare,
+                        wrkque.loctrvseq,
+                        wrkque.zontrvseq,
+                        wrkque.schbat,
+                        wrkque.list_id,
+                        wrkque.src_bldg_id,
+                        wrkque.src_aisle_id,
+                        decode(wrkque.oprcod, 'BPCK', @mlsMultiple, 'TBPCK', @mlsMultiple, wrkque.dstloc) que_dstloc,
+                        null cnt_id,
+                        decode(pckwrk_view.unique_pallet_id, null, 0, 1) palctl_wrk_flg,
+                        decode(rplwrk.list_id, null, 0, 1) pck_exp_flg,
+                        pckwrk_view.ship_id,
+                        decode(count(distinct ord.cponum), 0, '', 1, max(ord.cponum), @mlsMultiple) cponum,
+                        car_move.car_move_id,
+                        wrkque.ctnnum,
+                        appt.start_dte
+                   from wrkque
+                   join pckwrk_view
+                     on wrkque.list_id = pckwrk_view.list_id
+                   left
+                   join ord
+                     on pckwrk_view.ordnum = ord.ordnum
+                    and pckwrk_view.client_id = ord.client_id
+                    and pckwrk_view.wh_id = ord.wh_id
+                   left
+                   join rplwrk
+                     on rplwrk.list_id = pckwrk_view.list_id
+                   left
+                   join shipment
+                     on shipment.ship_id = pckwrk_view.ship_id
+                   left
+                   join stop
+                     on (shipment.stop_id = stop.stop_id or wrkque.refloc = stop.stop_id)
+                   left
+                   join car_move
+                     on stop.car_move_id = car_move.car_move_id
+                   left
+                   join appt
+                     on car_move.car_move_id = appt.car_move_id
+                  where wrkque.list_id is not NULL
+                    and (wrkque.client_id is null or @client_in_clause:raw)
+                    and @+wrkque.adddte:date
+                    and @+wrkque.issdte:date
+                    and @+wrkque.ackdte:date
+                    and @+wrkque.pckdte:date
+                    and @+wrkque.depdte:date
+                    and @+wrkque.lstescdte:date
+                    and @+wrkque.lodnum
+                    and @+wrkque.lodlvl
+                    and @+wrkque.ackdevcod
+                    and @+wrkque.dstloc
+                    and @+wrkque.lblbat
+                    and @+wrkque.wrkref
+                    and @+wrkque.refloc
+                    and @+wrkque.srcloc
+                    and @+wrkque.wh_id
+                    and @+wrkque.client_id
+                    and @+wrkque.list_id
+                    and @+wrkque.schbat
+                    and @+wrkque.cntgrp
+                    and @+wrkque.src_wrk_zone_id
+                    and @+pckwrk_view.ordnum
+                    and @+pckwrk_view.ship_id
+                    and @+pckwrk_view.revlvl
+                    and @+pckwrk_view.rtcust
+                    and @+pckwrk_view.ship_line_id
+                    and @+pckwrk_view.slot
+                    and @+pckwrk_view.splflg
+                    and @+pckwrk_view.ordlin
+                    and @+pckwrk_view.ordsln
+                    and @+pckwrk_view.orgcod
+                    and @+pckwrk_view.pallet_id
+                    and @+pckwrk_view.pallet_load_seq
+                    and @+pckwrk_view.pallet_pos
+                    and @+pckwrk_view.pck_catch_qty
+                    and @+pckwrk_view.pckqty
+                    and @+pckwrk_view.pcksts
+                    and @+pckwrk_view.invsts
+                    and @+pckwrk_view.invsts_prg
+                    and @+pckwrk_view.list_seqnum
+                    and @+pckwrk_view.lotnum
+                    and @+pckwrk_view.inv_attr_str1
+                    and @+pckwrk_view.inv_attr_str2
+                    and @+pckwrk_view.inv_attr_str3
+                    and @+pckwrk_view.inv_attr_str4
+                    and @+pckwrk_view.inv_attr_str5
+                    and @+pckwrk_view.inv_attr_str6
+                    and @+pckwrk_view.inv_attr_str7
+                    and @+pckwrk_view.inv_attr_str8
+                    and @+pckwrk_view.inv_attr_str9
+                    and @+pckwrk_view.inv_attr_str10
+                    and @+pckwrk_view.inv_attr_str11
+                    and @+pckwrk_view.inv_attr_str12
+                    and @+pckwrk_view.inv_attr_str13
+                    and @+pckwrk_view.inv_attr_str14
+                    and @+pckwrk_view.inv_attr_str15
+                    and @+pckwrk_view.inv_attr_str16
+                    and @+pckwrk_view.inv_attr_str17
+                    and @+pckwrk_view.inv_attr_str18
+                    and @+pckwrk_view.inv_attr_int1
+                    and @+pckwrk_view.inv_attr_int2
+                    and @+pckwrk_view.inv_attr_int3
+                    and @+pckwrk_view.inv_attr_int4
+                    and @+pckwrk_view.inv_attr_int5
+                    and @+pckwrk_view.inv_attr_flt1
+                    and @+pckwrk_view.inv_attr_flt2
+                    and @+pckwrk_view.inv_attr_flt3
+                    and @+pckwrk_view.inv_attr_dte1:date
+                    and @+pckwrk_view.inv_attr_dte2:date
+                    and @+pckwrk_view.min_shelf_hrs
+                    and @+pckwrk_view.bto_seqnum
+                    and @+pckwrk_view.cmbcod
+                    and @+pckwrk_view.concod
+                    and @+pckwrk_view.dst_mov_zone_id
+                    and @+pckwrk_view.stcust
+                    and @+pckwrk_view.supnum
+                    and @+pckwrk_view.untcas
+                    and @+pckwrk_view.untpak
+                    and @+pckwrk_view.wkolin
+                    and @+pckwrk_view.wkonum
+                    and @+pckwrk_view.wkorev
+                    and @+pckwrk_view.frsflg
+                    and @+pckwrk_view.ftpcod
+                    and @+pckwrk_view.ship_ctncod
+                    and @+pckwrk_view.ship_ctnnum
+                    and @+rplwrk.alcdte
+                    and @+ord.cponum
+                    and @+ord.rush_flg
+                    and @+ord.entdte
+                    and @+ord.crncy_code
+                    and @+ord.rrlflg
+                    and @+ord.rt_adr_id
+                    and @+car_move.car_move_id
+                    and @+shipment.srvlvl
+                    and @+shipment.host_ext_id
+                    and @+shipment.stop_id
+                    and @+shipment.doc_num
+                    and @+shipment.track_num
+                    and @+shipment.host_client_id
+                    and @+shipment.host_exit_id
+                    and @+shipment.carcod
+                    and @+shipment.srvlvl
+                    and @+shipment.rate_serv_nam
+                    and @+shipment.arcdte
+                    and @+shipment.arc_src
+                    and @+wrkque.oprcod
+                    and @+wrkque.src_wrk_zone_id
+                    and @+wrkque.ctnnum
+                    and @*
+                  group by wrkque.reqnum,
+                        wrkque.wrksts,
+                        wrkque.baspri,
+                        wrkque.effpri,
+                        wrkque.wh_id,
+                        wrkque.oprcod,
+                        wrkque.srcloc,
+                        wrkque.dstloc,
+                        wrkque.client_id,
+                        wrkque.lodlvl,
+                        wrkque.ack_usr_id,
+                        wrkque.ackdevcod,
+                        wrkque.lodnum,
+                        wrkque.adddte,
+                        wrkque.asg_role_id,
+                        wrkque.asg_usr_id,
+                        wrkque.batnum,
+                        wrkque.cntgrp,
+                        wrkque.depdte,
+                        wrkque.issdte,
+                        wrkque.lblbat,
+                        wrkque.locacc,
+                        wrkque.lstescdte,
+                        wrkque.pckdte,
+                        wrkque.ackdte,
+                        wrkque.wrkref,
+                        wrkque.refloc,
+                        wrkque.src_wrk_zone_id,
+                        wrkque.srcwrkare,
+                        wrkque.loctrvseq,
+                        wrkque.zontrvseq,
+                        wrkque.schbat,
+                        wrkque.list_id,
+                        wrkque.src_bldg_id,
+                        wrkque.src_aisle_id,
+                        pckwrk_view.unique_pallet_id,
+                        rplwrk.list_id,
+                        wrkque.rf_out_aud_id,
+                        pckwrk_view.ship_id,
+                        car_move.car_move_id,
+                        wrkque.ctnnum,
+                        appt.start_dte) temp1
+          where @filterByClause:raw
+          order by @sortOrderClause:raw]
+    }
+    else
+    {
+        /*
+         ** adding "noop" to make sure this command
+         ** doesn't return any result set or publishes out
+         */
+        noop
+    }
+}
+
+   ]]>
+</local-syntax>
+</command>

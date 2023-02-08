@@ -1,0 +1,75 @@
+<command>
+
+<name>list discrepant receipt lines</name>
+
+<description>List Discrepant Receipt Lines</description>
+
+<type>Local Syntax</type>
+
+<local-syntax>
+<![CDATA[
+    /*
+     * UNI-930: Katta, Dayakar: 29-Oct-2020
+     * This command was modified to allow the receive status discrepancies as, at UL status on inbound order line
+     * will usually be different from what received
+     */
+    [select 'X'
+       from poldat_view
+      where polcod = 'USR-UNILEVER'
+        and polvar = 'RCV-DISCREPANCY'
+        and polval = 'IGNORE-RCVSTS'
+        and wh_id = @wh_id
+        and rtnum1 = 1
+        and rownum < 2] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        list usr discrepant receipt lines
+    }
+    else
+    {
+        ^list discrepant receipt lines
+    }
+
+]]>
+</local-syntax>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+   This command is used to display all the discrepancy receipt lines that exist
+   at receiving inventory which can be short, over and damaged lines.
+  </p>
+]]>
+</remarks>
+
+<retcol name="trknum" type="COMTYP_CHAR">Truck Number</retcol>
+<retcol name="client_id" type="COMTYP_CHAR">Client ID</retcol>
+<retcol name="invnum" type="COMTYP_CHAR">Invoice Number</retcol>
+<retcol name="supnum" type="COMTYP_CHAR">Supplier Number</retcol>
+<retcol name="wh_id"  type="COMTYP_CHAR">Warehouse Id</retcol>
+<retcol name="prtnum" type="COMTYP_CHAR">Part Number</retcol>
+<retcol name="prt_client_id" type="COMTYP_CHAR">Part Client ID</retcol>
+<retcol name="prtnum_dsc" type="COMTYP_CHAR">Part Number Description</retcol>
+<retcol name="lotnum" type="COMTYP_CHAR">Lot Number</retcol>
+<retcol name="sup_lotnum" type="COMTYP_CHAR">Supplier Lot Number</retcol>
+<retcol name="revlvl" type="COMTYP_CHAR">Revision Level</retcol>
+<retcol name="orgcod" type="COMTYP_CHAR">Origin Code</retcol>
+<retcol name="cstms_cnsgnmnt_id" type="COMTYP_STRING">Customs Consignment ID</retcol>
+<retcol name="expqty" type="COMTYP_INT">Expected Quantity.  This is the total calculated expected quantity for this part/part attribute.</retcol>
+<retcol name="idnqty" type="COMTYP_INT">Identified Quantity.  This is the total calculated identified quantity for this part/part attribute.</retcol>
+<retcol name="rcvqty" type="COMTYP_INT">Receive Quantity.  This is the total calculated received quantity for this part/part attribute.</retcol>
+<retcol name="trlr_id" type="COMTYP_CHAR">Trailer Number</retcol>
+<retcol name="carcod" type="COMTYP_CHAR">Carrier Code.</retcol>
+<retcol name="rcvsts" type="COMTYP_CHAR">Receipt Status.</retcol>
+<retcol name="invlin" type="COMTYP_CHAR">Line Number.</retcol>
+<retcol name="invsln" type="COMTYP_CHAR">Subline Number.</retcol>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">No data found for a given truck</exception>
+
+</documentation>
+
+</command>

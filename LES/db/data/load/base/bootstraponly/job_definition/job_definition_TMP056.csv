@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-CLUSTER-PICK,SERVER1,Cluster picking job,1,timer,list usr cluster pick job,,,0,,0,60,

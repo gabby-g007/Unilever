@@ -1,0 +1,505 @@
+<project name="LES" default="default" basedir=".">
+  <description>
+    LES Java-based application
+  </description>
+
+  <!-- set global properties for this build -->
+  <property environment="env"/>
+  <property name="les-lib" location="${env.LESDIR}/lib" />
+  <property name="les-ws" location="${env.LESDIR}/ws"/>
+  <property name="moca-lib" location="${env.MOCADIR}/lib" />
+  <property name="moca-extern-lib" location="${env.MOCADIR}/javalib" />
+  <property name="moca-3rdparty-lib" location="${env.MOCADIR}/3rdparty" />
+  <property name="mtf-3rdparty-lib" location="${env.MTFDIR}/3rdparty" />
+  <property name="mcs-lib" location="${env.MCSDIR}/lib" />
+  <property name="mcs-extern-lib" location="${env.MCSDIR}/javalib"/>
+  <property name="sal-lib" location="${env.SALDIR}/lib" />
+  <property name="sal-extern-lib" location="${env.SALDIR}/javalib"/>
+  <property name="int-lib" location="${env.SLDIR}/lib" />
+  <property name="wmd-lib" location="${env.DCSDIR}/lib" />
+  <property name="wmd-extern-lib" location="${env.DCSDIR}/javalib"/>
+  <property name="tm-lib" location="${env.TMDIR}/lib" />
+  <property name="mtf-lib" location="${env.MTFDIR}/lib" />
+  <property name="wmd-mtf-lib" location="${env.DCSDIR}/mtfclient/lib" />
+
+  <property name="src" location="src"/>
+  <property name="mtf-src" location="mtfclient/src"/>
+  <property name="temp" location="temp"/>
+  <property name="build" location="build/classes"/>
+
+  <property name="mtf-build" location="mtfclient/build/classes"/>
+  <property name="build-lib" location="lib"/>
+  <property name="mtf-build-lib" location="mtfclient/lib"/>
+  <property name="docs" location="docs"/>
+  <property name="mtf-docs" location="mtfclient/docs"/>
+  <property name="javadocs" location="${docs}/api"/>
+  <property name="mtf-javadocs" location="${mtf-docs}/api"/>
+
+  <property name="3rdparty-lib" location="3rdparty" />
+  <property name="bin" location="bin" />
+  <property name="javalib" location="javalib" />
+  <property name="lib" location="lib" />
+
+  <property name="pmd.home" location="${env.MOCADIR}/test/3rdparty/pmd-4.3"/>
+  <path id="pmd.classpath">
+    <fileset dir="${pmd.home}">
+      <include name="**/*.jar"/>
+    </fileset>
+  </path>
+
+  <property name="findbugs.home" location="${env.MOCADIR}/test/3rdparty/findbugs"/>
+  <path id="findbugs.classpath">
+    <fileset dir="${findbugs.home}">
+      <include name="**/*.jar"/>
+    </fileset>
+  </path>
+
+  <fileset id="dependency.bin.files" dir="${3rdparty-lib}">
+    <include name="**/*.dll"/>
+    <include name="**/*.pdb"/>
+  </fileset>
+
+  <fileset id="dependency.javalib.files" dir="${3rdparty-lib}">
+    <include name="**/*.jar"/>
+    <include name="**/*.properties"/>
+    <include name="**/*.zip"/>
+  </fileset>
+
+  <fileset id="dependency.lib.files" dir="${3rdparty-lib}">
+    <include name="**/*.a"/>
+    <include name="**/*.so"/>
+    <include name="**/*.sl"/>
+    <include name="**/*.lib"/>
+  </fileset>
+
+  <fileset id="moca.lib.files" dir="${moca-lib}" >
+    <include name="**/*.jar"/>
+  </fileset>
+  <fileset id="moca.dependency.files" dir="${moca-extern-lib}" >
+    <include name="**/*.jar"/>
+  </fileset>
+
+  <fileset id="mtf.lib.files" dir="${mtf-lib}" erroronmissingdir="false">
+    <include name="**/*.jar"/>
+  </fileset>
+
+  <fileset id="mtf.dependency.files" dir="${mtf-3rdparty-lib}" erroronmissingdir="false">
+    <include name="**/*.jar"/>
+  </fileset>
+
+  <fileset id="mcs.lib.files" dir="${mcs-lib}" erroronmissingdir="false">
+    <include name="**/*.jar"/>
+  </fileset>
+  <fileset id="mcs.dependency.files" dir="${mcs-extern-lib}" erroronmissingdir="false">
+    <include name="**/*.jar"/>
+  </fileset>
+
+  <fileset id="sal.lib.files" dir="${sal-lib}" erroronmissingdir="false">
+    <include name="**/*.jar"/>
+  </fileset>
+  <fileset id="sal.dependency.files" dir="${sal-extern-lib}" erroronmissingdir="false">
+    <include name="**/*.jar"/>
+  </fileset>
+
+  <fileset id="int.lib.files" dir="${int-lib}" erroronmissingdir="false">
+    <include name="**/*.jar"/>
+  </fileset>
+  
+  <fileset id="wmd.lib.files" dir="${wmd-lib}" erroronmissingdir="false">
+    <include name="**/*.jar"/>
+  </fileset>
+  <fileset id="wmd-mtf.lib.files" dir="${wmd-mtf-lib}" erroronmissingdir="false">
+    <include name="**/*.jar"/>
+  </fileset>
+  <fileset id="wmd.dependency.files" dir="${wmd-extern-lib}" erroronmissingdir="false">
+    <include name="**/*.jar"/>
+  </fileset>
+
+  <fileset id="tm.lib.files" dir="${tm-lib}" erroronmissingdir="false">
+    <include name="**/*.jar"/>
+  </fileset>
+
+  <!-- Set up the project's class path -->
+  <path id="project.class.path">
+    <fileset refid="wmd.lib.files"/>
+    <fileset refid="wmd-mtf.lib.files"/>
+    <fileset refid="wmd.dependency.files"/>
+    <fileset refid="mtf.lib.files"/>
+    <fileset refid="mtf.dependency.files"/>
+	<fileset refid="int.lib.files"/>
+    <fileset refid="sal.lib.files"/>
+    <fileset refid="sal.dependency.files"/>
+    <fileset refid="mcs.lib.files"/>
+    <fileset refid="mcs.dependency.files"/>
+    <fileset refid="moca.lib.files"/>
+    <fileset refid="moca.dependency.files"/>
+    <fileset refid="tm.lib.files"/>
+
+    <!-- include LES jar -->
+    <pathelement location="${les-lib}/les.jar" />
+    <!-- include LES 3rd-party jars -->
+    <fileset dir="${javalib}">
+      <include name="*.jar"/>
+    </fileset>
+  </path>
+
+  <!-- Set up the mtfclient project's class path -->
+  <path id="mtf-project.class.path">
+    <fileset refid="wmd.lib.files"/>
+    <fileset refid="wmd-mtf.lib.files"/>
+    <fileset refid="wmd.dependency.files"/>
+    <fileset refid="mtf.lib.files"/>
+    <fileset refid="mtf.dependency.files"/>
+    <fileset refid="sal.lib.files"/>
+    <fileset refid="sal.dependency.files"/>
+    <fileset refid="mcs.lib.files"/>
+    <fileset refid="mcs.dependency.files"/>
+    <fileset refid="moca.lib.files"/>
+    <fileset refid="moca.dependency.files"/>
+  </path>
+
+  <patternset id="resource.files" >
+    <exclude name="**/*.java" />
+    <exclude name="**/*.launch" />
+  </patternset>
+
+  <target name="depends" description="Copy 3rd-party dependencies into project">
+    <echo>Copy 3rd-party dependencies into bin</echo>
+    <copy todir="${bin}" flatten="true">
+      <fileset refid="dependency.bin.files"/>
+    </copy>
+    <echo>Copy 3rd-party dependencies into javalib</echo>
+    <copy todir="${javalib}" flatten="true">
+      <fileset refid="dependency.javalib.files"/>
+    </copy>
+    <echo>Copy 3rd-party dependencies into lib</echo>
+    <copy todir="${lib}" flatten="true">
+      <fileset refid="dependency.lib.files"/>
+    </copy>
+  </target>
+
+    <!-- LES Clean Target -->
+  <target name="les-clean" description="clean up" >
+    <!-- Delete the ${build} and ${dist} directory trees -->
+    <delete dir="${build}"/>
+    <delete dir="build/ws"/>    
+  </target>
+
+  <!-- LES Initialization Target -->
+  <target name="les-init" depends="les-clean">
+    <!-- Create the time stamp -->
+    <tstamp>
+      <format property="TSTAMP" pattern="yyyy-MM-dd HH:mm" />
+    </tstamp>
+
+    <property file="release.properties"/>
+
+    <!-- Create the build directory structure used by compile -->
+    <mkdir dir="${build}"/>
+  </target>
+
+  <!-- LES Compile Target -->
+  <target name="les-compile" depends="les-init" description="compile the source " >
+    <!-- Compile the java code from ${src}/java into ${build} -->
+    <javac srcdir="${src}/java" destdir="${build}" source="1.8" target="1.8" includeAntRuntime="false" debug="true">
+      <classpath refid="project.class.path" />
+    </javac>
+
+    <!-- copy all supporting files to the build area -->
+    <copy todir="${build}" >
+      <fileset dir="${src}/java" >
+        <patternset refid="resource.files" />
+      </fileset>
+    </copy>
+  </target>
+
+  <!-- LES Distribuion Target (les.jar) -->
+  <target name="les-jar" depends="les-compile" description="generate the distribution" >
+    <!-- Create the distribution directory -->
+    <mkdir dir="${build-lib}"/>
+
+    <!-- Put everything in ${build} except applications package in les.jar -->
+    <property name="apps-path" value="com/redprairie/les/applications"/>
+    <jar jarfile="${build-lib}/les-apps.jar" >
+      <fileset dir="${build}">
+        <filename name="${apps-path}/**"/>
+      </fileset>
+    </jar>
+    <jar jarfile="${build-lib}/les.jar" >
+      <fileset dir="${build}">
+        <not>
+          <filename name="${apps-path}/**"/>
+        </not>
+      </fileset>
+    </jar>
+  </target>
+
+   <!-- MTF Client Clean Target -->
+  <target name="mtf-clean" description="clean up" >
+    <!-- Delete the ${mtf-build} and ${dist} directory trees -->
+    <delete dir="${mtf-build}"/>
+  </target>
+
+  <!-- MTF Client Initialization Target -->
+  <target name="mtf-init" depends="mtf-clean">
+    <!-- Create the time stamp -->
+    <tstamp>
+        <format property="TSTAMP" pattern="yyyy-MM-dd HH:mm" />
+    </tstamp>
+
+    <property file="release.properties"/>
+
+    <!-- Create the {mtf-build} directory structure used by compile -->
+    <mkdir dir="${mtf-build}"/>
+  </target>
+
+  <!-- MTF Compile Target -->
+  <target name="mtf-compile" depends="mtf-init" description="compile the source" >
+    <!-- Compile the java code from ${mtf-src}/java into {mtf-build-lib} -->
+    <javac srcdir="${mtf-src}/java" destdir="${mtf-build}" source="1.7" target="1.7" includeAntRuntime="false" debug="true">
+      <classpath refid="mtf-project.class.path" />
+    </javac>
+
+    <!-- copy all supporting files to the mtf-build area -->
+    <copy todir="${mtf-build}" >
+      <fileset dir="${mtf-src}/java" >
+        <patternset refid="resource.files" />
+      </fileset>
+    </copy>
+  </target>
+
+  <!-- MTF Client Distribution Target (les-mtf.jar) -->
+  <target name="mtf-jar" depends="mtf-compile" description="generate the distribution" >
+    <!-- Create the distribution directory -->
+    <mkdir dir="${mtf-build-lib}"/>
+
+    <!-- Put everything in ${mtf-build} into the les-mtf.jar file -->
+    <jar jarfile="${mtf-build-lib}/les-mtf.jar">
+        <fileset dir="${mtf-build}"/>
+    </jar>
+  </target>
+
+
+  <target name="javadoc" depends="les-init,mtf-init">
+    <mkdir dir="${javadocs}" />
+    <mkdir dir="${mtf-javadocs}" />
+    <javadoc sourcepath="${src}/java"
+         destdir="${javadocs}"
+         access="package"
+         version="true"
+         author="true"
+         windowtitle="LES API"
+         doctitle="LES API"
+         stylesheetfile="${docs}/moca.css"
+         >
+      <classpath refid="project.class.path" />
+      <link href="http://www.junit.org/junit/javadoc/3.8.1/" />
+      <link href="http://java.sun.com/j2se/1.5.0/docs/api/" />
+
+      <fileset dir="${src}/java" >
+    <include name="**/*.java"/>
+    <exclude name="**/test/**"/>
+    <exclude name="**/TU_*.java"/>
+    <exclude name="**/TF_*.java"/>
+    <exclude name="**/TI_*.java"/>
+      </fileset>
+    </javadoc>
+
+    <javadoc sourcepath="${mtf-src}/java"
+         destdir="${mtf-javadocs}"
+         access="package"
+         version="true"
+         author="true"
+         windowtitle="LES MTF API"
+         doctitle="LES MTF API"
+         stylesheetfile="${mtf-docs}/moca.css"
+         >
+      <classpath refid="mtf-project.class.path" />
+      <link href="http://www.junit.org/junit/javadoc/3.8.1/" />
+      <link href="http://java.sun.com/javase/6/docs/api/" />
+      <fileset dir="${mtf-src}/java" >
+        <include name="**/*.java"/>
+        <exclude name="**/test/**"/>
+        <exclude name="**/TU_*.java"/>
+        <exclude name="**/TF_*.java"/>
+        <exclude name="**/TI_*.java"/>
+      </fileset>
+    </javadoc>
+  </target>
+
+  <target name="clean" description="clean up" depends="les-clean,mtf-clean,rest-clean"/>
+
+  <target name="all" description="clean and build all for packaging" depends="depends,les-jar,mtf-jar">
+      <echo>Scrubbing build/classes directory</echo>
+      <delete>
+          <fileset dir="build" includes="**/*.*"/>
+      </delete>
+      <delete>
+          <fileset dir="mtfclient/build" includes="**/*.*"/>
+      </delete>
+  </target>
+
+  <target name="default" description="clean and build" depends="depends,les-jar,mtf-jar,ws-build,refs-build"/>
+
+  <target name="copyright" description="Remove non-RedPrairie source code for producing copyright materials">
+    <echo>Removing non-RedPrairie source code for producing copyright materials</echo>
+
+    <echo>Removing 3rdparty directory</echo>
+    <delete dir="3rdparty" />
+  </target>
+
+  <!-- REFS custom app build -->
+  <target name="refs-build" if="refs.installed" depends="refs.check"
+      description="build custom REFS apps if local REFSDIR exists" >
+     <antcall target="refs-servicesapp"/>
+     <antcall target="refs-customerapp"/>
+  </target>
+
+  <target name="refs-servicesapp" if="servicesapp.exists" depends="servicesapp.check"
+      description="build Services REFS apps" >
+     <ant antfile="build.xml" dir="webclient/refs/var/servicesApp" target="build" />
+  </target>
+
+    <target name="refs-customerapp" if="customerapp.exists" depends="customerapp.check"
+      description="build Customer REFS apps" >
+      <ant antfile="build.xml" dir="webclient/refs/usr/customerApp" target="build" />
+  </target>
+
+  <target name="refs.check" description="build custom apps">
+    <condition property="refs.installed">
+      <available file="${env.REFSDIR}" type="dir"/>
+    </condition>
+  </target>
+
+  <target name="customerapp.check" description="Check for custom apps">
+    <condition property="customerapp.exists">
+      <available file="webclient/refs/usr/customerApp/build.xml" type="file"/>
+    </condition>
+  </target>
+
+  <target name="servicesapp.check" description="Check for custom REFS app">
+    <condition property="servicesapp.exists">
+      <available file="webclient/refs/var/servicesApp/build.xml" type="file"/>
+    </condition>
+  </target>
+
+  <!-- Web Services tasks -->
+  <property name="webdeploy" location="webdeploy"/>
+
+<!-- ****** Custom MOCAREST Web Services ****** -->
+
+  <target name="ws-build" description="build custom implementations for product use MOCA REST framework">
+    <!-- ant call per product war --> 
+    <antcall target="ws-build-wm"/>
+  </target>
+
+  <target name="test.wm.installed" description="Does envirnment have WM installed?">
+    <condition property="wm.installed">
+      <available file="${env.DCSDIR}/lib/wm-web.jar" type="file"/>
+    </condition>
+  </target> 
+  <target name="ws-build-wm" if="wm.installed" depends="test.wm.installed"
+        description="Build WM custom webservice jar if WM is installed">
+    <antcall target="rest-jar">
+      <!-- target value corresponds to the wms webservice war file name of "wm" -->
+      <param name="target" value="wm"/>
+    </antcall>
+  </target>
+
+  <target name="rest-jar" description="generate distribution of rest services for the target web module">
+    <mkdir dir="${build-lib}"/>
+    <antcall target="rest-compile">
+      <param name="target" value="${target}"/>
+    </antcall>
+    <jar jarfile="${build-lib}/les-${target}-rest.jar" >
+      <fileset dir="build/ws/${target}/classes"/>
+    </jar>
+  </target>
+
+  <target name="rest-compile" description="compile the rest web services for a target web module">
+    <antcall target="rest-init">
+      <param name="target" value="${target}"/>
+    </antcall>
+    <javac srcdir="${les-ws}/${target}/src/java" destdir="build/ws/${target}/classes"
+           source="1.7" target="1.7" includeAntRuntime="false" debug="true">
+      <classpath refid="project.class.path"/>
+    </javac>
+    <copy todir="build/ws/${target}/classes" description="copy supporting files to the build area">
+      <fileset dir="${les-ws}/${target}/src/java">
+        <patternset refid="resource.files"/>
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="rest-init" description="compile the rest web services for a target web module">
+    <antcall target="rest-clean">
+      <param name="target" value="${target}"/>
+    </antcall>
+    <tstamp>
+      <format property="TSTAMP" pattern="yyyy-MM-dd HH:mm"/>
+    </tstamp>
+    <property file="release.properties"/>
+    <mkdir dir="build/ws/${target}/classes"/>
+  </target>
+
+  <target name="rest-clean" description="clean up">
+    <delete dir="build/ws/${target}/classes"/>
+  </target>
+
+  <target name="pmd" description="PMD analysis for java code">
+    <echo>Running PMD...</echo>
+    <property name="output.file" location="${env.LESDIR}/log/pmd.html"/>
+    <fileset id="pmd.fileset.rest" dir="${env.LESDIR}">
+        <include name="src/java/**/*.java"/>
+        <include name="ws/*/src/java/**/*.java"/>
+    </fileset>
+    <taskdef name="pmd" classname="net.sourceforge.pmd.ant.PMDTask" classpathref="pmd.classpath"/>
+    <pmd rulesetfiles="${env.LESDIR}/tools/pmdrules.xml">
+      <formatter type="html" toFile="${output.file}"/>
+      <fileset refid="pmd.fileset.rest"/>
+      <auxClasspath>
+        <path refid="project.class.path"/>
+      </auxClasspath>
+    </pmd>
+    <echo>Output saved to ${output.file}</echo>
+  </target>
+
+  <target name="findbugs" description="FindBugs analysis for java code">
+    <property name="output.file" location="${env.LESDIR}/log/findbugs.html"/>
+    <path id="findbugs.sourcepath">
+      <dirset dir="${env.LESDIR}">
+        <include name="src/java"/>
+        <!-- add additional include element for other product using the same web service
+             build pattern. Name would be of form ws/prodwarname/src/java
+        -->
+        <include name="ws/wm/src/java"/>
+      </dirset>
+    </path>
+    <taskdef name="findbugs"
+        classname="edu.umd.cs.findbugs.anttask.FindBugsTask"
+        classpathref="findbugs.classpath"/>
+    <findbugs
+        home="${findbugs.home}"
+        output="html"
+        reportLevel="medium"
+        excludeFilter="${env.LESDIR}/tools/findbugsfilter.xml"
+        jvmargs="-Xmx1024m"
+        timeout="90000000"
+        effort="max"
+        outputfile="${output.file}"
+        quietErrors="true">
+      <sourcePath refid="findbugs.sourcepath"/>
+      <class location="build/classes"/>
+      <!-- add additional class element for product using the same web service
+           build pattern. refid would be of form build/ws/prodwarname/classes
+      -->
+      <class location="build/ws/wm/classes"/>
+      <auxClasspath>
+        <path refid="project.class.path"/>
+      </auxClasspath>
+    </findbugs>
+  </target>
+
+<!-- ****** End of MOCAREST Stuff ****** -->
+
+</project>

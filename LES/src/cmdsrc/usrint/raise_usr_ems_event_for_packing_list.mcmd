@@ -1,0 +1,84 @@
+<command>
+  <name>raise usr ems event for packing list</name>
+  <description>raise usr ems event for packing list</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    publish data
+     where evt_msg = "Please find attached packing list report
+       Master Shipment:    @car_move_id
+       Ship To Customer:   @stcust"
+       and evt_subj = "Packing List Report with LOT Codes"
+       and evt_grp = 'SHIPPING'
+       and evt_pri = '1'
+       and evt_qual = "car_move_id,stcust"
+       and evt_nam = @evt_nam
+       and src_sys = @src_sys
+       and lngdsc = 'Packing List Report with LOT Codes'
+}
+else
+{
+    get ems event information
+     where evt_nam = 'USR-PACKING-LIST-WITH-LOT'
+    |
+    if (@enabled = 1)
+    {
+        
+            [select '/data/jda/ULARPT/les/log/' || @car_move_id || '_' || to_char(sysdate, 'MMSS') || '.pdf' as filepath,
+                    '/data/jda/ULAWMS/les/files/reports/' || @car_move_id || '_' || to_char(sysdate, 'MMSS') || '.pdf' destpath,
+                    @car_move_id || '_' || to_char(sysdate, 'MMSS') || '.pdf' filnam
+               from dual]
+            |
+            generate MOCA report
+             where gen_usr_id = nvl(@usr_id, @@usr_id)
+               and rpt_id = 'Var-PackingList-lot'
+               and locale_id = 'US_ENGLISH'
+               AND wh_id = nvl(@wh_id, @@wh_id)
+               and desc = ''
+               and dig_sig_req_flg = 0
+               and keep_days = '14'
+               and logemsevt = '0'
+               and car_move_id = @car_move_id
+               and format_typ = 'pdf'
+               and dest_typ = 'file'
+               and dest = @filepath
+            |
+	    go to sleep
+             where sleeptime = 10	
+            |
+	    publish data
+             where copy_cmd = 'cp ' || @filepath || ' ' || @destpath
+            |
+            execute os command
+             where cmd = @copy_cmd
+            |
+	    go to sleep
+             where sleeptime = 10	
+            |
+	    get server information
+	    |
+	    get ems source system
+            |
+	    log ems event
+             where evt_nam = 'USR-PACKING-LIST-WITH-LOT'
+               and src_sys = @src_sys
+               and wh_id = @wh_id
+               and car_move_id = @car_move_id
+	       and stcust = @stcust
+	       and in_trans = 0
+               and locale_id = 'US_ENGLISH'
+               and att_app_srv = @url
+               and att_file = @filnam
+               and att_path = @destpath
+               and key_val = sysdate
+	       and @*
+        
+    }
+}
+]]>
+</local-syntax>
+</command>

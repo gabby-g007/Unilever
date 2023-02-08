@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-ORDER-CUT-DETAIL,,Order Cut Details report,0,cron,raise usr ems alert for order cut details,$LESDIR/log/USR-ORDER-CUT-DETAIL.log,,0,0 0 11 * * ?,0,,usr_data

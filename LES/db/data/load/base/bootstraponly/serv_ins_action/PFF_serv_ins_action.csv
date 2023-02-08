@@ -1,0 +1,2 @@
+serv_ins_id,serv_action_typ,serv_action_cod,seqnum,rf_frm_id,gui_frm_id,cnfrm_val_var_nam,post_cnfrm_val_cmd,invsts,ems_evt_nam,rpt_id,cmd,hldnum,hldcod,hldpfx,reacod,moddte,mod_usr_id
+VAR-PFF,PASS,EXCFORM,1,CNFRM_SERV_VAL,servcnfvalopr,var_value,,,,,,,,512,,20220616075417,

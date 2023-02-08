@@ -1,0 +1,123 @@
+<command>
+  <name>list usr dhl height order details</name>
+  <description>Order information for items on height DDA</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'sum((pckwrk_view.pckqty) / prtftp_dtl.untqty) desc')
+|
+[select rtstr1,
+        rtstr2
+   from poldat_view
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'UNILEVER-HEIGHT-SLOTTING'
+    and polval = 'SRCARE'
+    and wh_id = @wh_id] catch(-1403)
+|
+[/*#limit=@offset,@limit,true*/
+select appt.start_dte,
+        car_move.car_move_id,
+        adrmst.adrnam,
+        ord_line.ordnum,
+        ord_line.prtnum
+   from ord_line
+   join shipment_line
+     on ord_line.ordnum = shipment_line.ordnum
+    and ord_line.ordlin = shipment_line.ordlin
+	and ord_line.ordsln = shipment_line.ordsln
+   join shipment
+     on shipment_line.ship_id = shipment.ship_id
+   join stop
+     on shipment.stop_id = stop.stop_id
+   join car_move
+     on stop.car_move_id = car_move.car_move_id
+   left outer
+   join appt
+     on car_move.car_move_id = appt.car_move_id
+   join adrmst
+     on ord_line.st_adr_id = adrmst.adr_id 
+   join prtftp
+     on ord_line.prtnum = prtftp.prtnum
+    and ord_line.wh_id = prtftp.wh_id
+   join prtftp_dtl
+     on prtftp.prtnum = prtftp_dtl.prtnum
+    and prtftp.wh_id = prtftp_dtl.wh_id
+  where shipment.shpsts in ('R', 'I')
+    and @filterByClause:raw
+    and @+ord_line.prtnum
+    and prtftp.defftp_flg = 1
+    and prtftp_dtl.uomcod = 'PA'] catch(@?)
+|
+[select prtmst.prtnum,
+        prtdsc.lngdsc,
+        prtmst.prtfam,
+        pckwrk_view.ftpcod,
+        prtftp_dtl.untqty,
+        pc.grswgt,
+        pc.hgt,
+        pckwrk_view.srcloc,
+        locmst.maxqvl,
+        to_char(pckwrk_view.pckqty / prtftp_dtl.untqty, '999.99') amount,
+        count(pckwrk_view.pckqty) Hits,
+        sum(pckwrk_view.pckqty) Cases,
+        sum((pckwrk_view.pckqty) / prtftp_dtl.untqty) PeQ
+   from prtmst
+   join prtdsc
+     on prtmst.prtnum + '|' + prtmst.prt_client_id + '|' + prtmst.wh_id_tmpl = prtdsc.colval
+   join prtftp_dtl
+     on prtmst.prtnum = prtftp_dtl.prtnum
+    and prtmst.wh_id_tmpl = prtftp_dtl.wh_id
+   join prtftp_dtl pc
+     on prtmst.prtnum = pc.prtnum
+    and prtmst.wh_id_tmpl = pc.wh_id
+   join pckwrk_view
+     on prtmst.prtnum = pckwrk_view.prtnum
+    and prtftp_dtl.ftpcod = pckwrk_view.ftpcod
+   join locmst
+     on pckwrk_view.srcloc = locmst.stoloc
+  where prtmst.prtnum = @prtnum
+    and prtmst.wh_id_tmpl = @wh_id
+    and prtftp_dtl.wh_id = @wh_id
+    and prtftp_dtl.pal_flg = 1
+    and pc.wh_id = @wh_id
+    and pc.cas_flg = 1
+    and pckwrk_view.srcare not like '%' || @rtstr1 || '%'
+    and pckwrk_view.srcare not like '%' || @rtstr2 || '%'
+    and prtftp_dtl.uomcod = 'PA'
+  group by prtmst.prtnum,
+        prtdsc.lngdsc,
+        prtmst.prtfam,
+        pckwrk_view.ftpcod,
+        prtftp_dtl.untqty,
+        pc.grswgt,
+        pc.hgt,
+        pckwrk_view.srcloc,
+        pckwrk_view.pckqty,
+        locmst.maxqvl
+  order by @sortOrderClause:raw] catch(@?)
+|
+publish data
+ where appt_date = @start_dte
+   and car_move_id = @car_move_id
+   and adrnam = @adrnam
+   and ordnum = @ordnum
+   and amount = @amount
+   and prtnum = @prtnum
+   and lngdsc = @lngdsc
+   and prtfam = @prtfam
+   and ftpcod = @ftpcod
+   and untqty = @untqty
+   and Height = @hgt
+   and GrossWeight = @grswgt
+   and srcloc = @srcloc
+   and hits = @Hits
+   and Capacity = @maxqvl
+   and peq = @PeQ
+   and cases = @Cases
+]]>
+</local-syntax>
+</command>

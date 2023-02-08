@@ -1,0 +1,12 @@
+mset command on
+
+create db documentation
+ where table = "uc_sl_temp_tbl"
+   and table_comment = "This table is created to hold no. of attempts to retrigger an SE event, also can be expanded later for any integrator transaction if needed"
+   and evt_data_seq = "Event Data Sequence. FK to SL_EVT_DATA.EVT_DATA_SEQ"
+   and ref_fld1 = "Referene Field 1"
+   and int_fld1 = "Interger Field 1"
+   and str_fld1 = "String Field 1"
+/
+
+mset command off

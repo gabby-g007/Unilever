@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-PICKEDINV-ALERT,,To send supervisor the list of inventory picked with ineligible status for customer orders,0,timer,raise usr ems alert for picked inventory,$LESDIR/log/USR-PICKEDINV-ALERT.log,,0,,0,21600,usr_data

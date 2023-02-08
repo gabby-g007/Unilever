@@ -1,0 +1,67 @@
+<command>
+  <name>list usr partial pallets not in a pickface</name>
+  <description>list usr partial pallets not in a pickface</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+list warehouses
+ where wh_id <> 'WMD1'
+|
+[select temp.prtnum,
+        temp.lotnum,
+        temp.ftpcod,
+        temp.lodnum,
+        temp.stoloc,
+        temp.arecod,
+        temp.invsts,
+        temp.fifdte,
+        temp.full_plt_qty "Full_Pallet_Quantity",
+        temp.LPN_qty "LPN_Quantity"
+   from(select id.prtnum,
+            id.lotnum,
+            pd.ftpcod,
+            il.lodnum,
+            il.stoloc,
+            am.arecod,
+            id.invsts,
+            id.fifdte,
+            pd.untqty full_plt_qty,
+                sum(id.untqty) LPN_qty
+           from invdtl id,
+                prtftp_dtl pd,
+                invlod il,
+                invsub,
+                locmst lm,
+                loc_typ lt,
+                aremst am,
+                pck_zone pz
+          where id.prtnum = pd.prtnum
+            and id.subnum = invsub.subnum
+            and invsub.lodnum = il.lodnum
+            and il.wh_id = nvl(@wh_id, @@wh_id)
+            and il.stoloc = lm.stoloc
+            and lm.wh_id = nvl(@wh_id, @@wh_id)
+            and lm.loc_typ_id = lt.loc_typ_id
+            and lm.wh_id = lt.wh_id
+            and lm.arecod = am.arecod
+            and am.wh_id = nvl(@wh_id, @@wh_id)
+            and am.arecod = pz.pck_zone_cod
+            and am.wh_id = pz.wh_id
+            and lt.stoare_flg = 1
+            and pz.subflg = 0
+            and pd.uomcod = 'PA'
+            and pd.wh_id = nvl(@wh_id, @@wh_id)
+            and rownum < 10
+          group by id.prtnum,
+                id.lotnum,
+                pd.ftpcod,
+                il.lodnum,
+                il.stoloc,
+                am.arecod,
+                id.invsts,
+                id.fifdte,
+                pd.untqty
+         having mod(sum(id.untqty), pd.untqty) <> 0) temp]
+   ]]>
+</local-syntax>
+</command>

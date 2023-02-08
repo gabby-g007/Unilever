@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-REMOVE-OLD-EXPECTED-RCPT-TRLR,,Remove Expected Receipts & Trailers older than 30 & 45 Days,0,cron,remove usr older expected status receipts and trailer,$LESDIR/log/USR-REMOVE-OLD-EXPECTED-RCPT-TRLR.log,,0,0 15 4 * * ?,0,,usr_data

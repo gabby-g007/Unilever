@@ -1,0 +1,88 @@
+<command>
+  <name>process host part</name>
+  <description>Process Host Part</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+if (@prtfam is null or @prtfam = '')
+{
+    [select rtstr1 dflt_abs_ordinv_code,
+            rtstr2 dflt_timcod,
+            rtnum1 dflt_abs_ordinv_win,
+            rtnum2 dflt_fifwin
+       from prtmst
+       join poldat_view
+         on poldat_view.polcod = 'USR-UNILEVER'
+        and poldat_view.polvar = 'ITEM-OVERRIDE'
+        and poldat_view.polval = prtmst.prtfam
+        and poldat_view.wh_id = prtmst.wh_id_tmpl
+      where prtmst.prtnum = @prtnum
+        and @+wh_id_tmpl
+        and @+prt_client_id
+        and rownum = 1] catch(-1403)
+}
+else
+{
+    [select rtstr1 dflt_abs_ordinv_code,
+            rtstr2 dflt_timcod,
+            rtnum1 dflt_abs_ordinv_win,
+            rtnum2 dflt_fifwin
+       from poldat_view
+      where poldat_view.polcod = 'USR-UNILEVER'
+        and poldat_view.polvar = 'ITEM-OVERRIDE'
+        and poldat_view.polval = @prtfam
+        and @+wh_id
+        and rownum = 1] catch(-1403)
+}
+|
+if (@? = 0)
+{
+    [select decode(rtstr2, 'S', (@dflt_abs_ordinv_win *24*60*60), 'M', (@dflt_abs_ordinv_win *24*60), 'H', (@dflt_abs_ordinv_win *24), @dflt_abs_ordinv_win) dflt_abs_ordinv_win
+       from poldat_view
+      where poldat_view.polcod = 'USR-UNILEVER'
+        and poldat_view.polvar = 'ITEM-OVERRIDE'
+        and poldat_view.polval = 'TIME-CONVERSION-FACTOR'
+        and poldat_view.rtstr1 = 'abs_ordinv_win'
+        and @+wh_id
+        and rownum = 1] catch(-1403)
+    |
+    [select decode(rtstr2, 'S', (@time_to_warn_for_exp *24*60*60), 'M', (@time_to_warn_for_exp *24*60), 'H', (@time_to_warn_for_exp *24), @time_to_warn_for_exp) dflt_time_to_warn_for_exp
+       from poldat_view
+      where poldat_view.polcod = 'USR-UNILEVER'
+        and poldat_view.polvar = 'ITEM-OVERRIDE'
+        and poldat_view.polval = 'TIME-CONVERSION-FACTOR'
+        and poldat_view.rtstr1 = 'time_to_warn_for_exp'
+        and @+wh_id
+        and rownum = 1] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        publish data
+         where abs_ordinv_code = @dflt_abs_ordinv_code
+           and abs_ordinv_win = @dflt_abs_ordinv_win
+           and fifwin = @dflt_fifwin
+           and timcod = @dflt_timcod
+           and time_to_warn_for_exp = @dflt_time_to_warn_for_exp
+    }
+}
+|
+if (@age_pflnam != null)
+{
+    [select poldat_view.rtstr1 rcvsts
+       from poldat_view
+      where poldat_view.polcod = 'USR-UNILEVER'
+        and poldat_view.polvar = 'PRTMST-UPDATE'
+        and poldat_view.polval = 'RCVSTS'
+        and poldat_view.rtnum1 = substr(@age_pflnam, length(@age_pflnam) -2, 1)] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        publish data
+         where rcvsts = @rcvsts
+    }
+}
+|
+^process host part
+]]>
+</local-syntax>
+</command>

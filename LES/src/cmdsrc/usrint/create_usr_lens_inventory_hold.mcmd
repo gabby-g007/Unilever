@@ -1,0 +1,113 @@
+<command>
+  <name>create usr lens inventory hold</name>
+  <description>create usr lens inventory hold</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+    generate next number
+     where numcod = 'hldnum'
+    |
+    publish data
+     where hldnum = @nxtnum
+    |
+    create hold definition
+     where future_flg = 0
+       and hldtyp = 'Q'
+       and wh_id = @wh_id
+       and @+hldpfx^hldpfx
+       and @+hldnum^hldnum
+       and @+lngdsc^lngdsc
+       and @+reacod^hold_rsn_txt
+       and @+alcflg^alcflg
+       and @+shpflg^shpflg
+    |
+    if (@cmnt_txt != '')
+    {
+        save session variable
+         where name = 'notlin'
+           and value = 1
+        |
+        parse note text
+         where nottxt = @cmnt_txt
+           and maxlen = 40
+        |
+        {
+            get session variable
+             where name = 'notlin'
+            |
+            create hold definition note
+             where @+hldpfx^hldpfx
+               and @+hldnum^hldnum
+               and wh_id = @wh_id
+               and notlin = to_char(@value, '0000')
+               and nottxt = @nottxt
+            |
+            save session variable
+             where name = 'notlin'
+               and value = @value + 1
+        }
+    }
+    |
+    if (@lodnum != '' or @lodnum is not null)
+    {
+        [select inv.prtnum,
+                inv.lotnum,
+                inv.lodnum,
+                inv.subnum,
+                inv.dtlnum
+           from inventory_view inv,
+                locmst lm,
+                aremst am,
+		loc_typ
+          where inv.lodnum = @lodnum
+            and inv.stoloc = lm.stoloc
+            and lm.arecod = am.arecod
+	    and loc_typ.fwiflg = 1
+	    and loc_typ.loc_typ_id = lm.loc_typ_id
+	    and loc_typ.wh_id = lm.wh_id
+            /*and am.fwiflg = 1*/
+            and am.wh_id = inv.wh_id] catch(-1403) >> invres
+    }
+    else
+    {
+        [select inv.prtnum,
+                inv.lotnum,
+                inv.lodnum,
+                inv.subnum,
+                inv.dtlnum
+           from inventory_view inv,
+                locmst lm,
+                aremst am,
+		loc_typ
+          where inv.prtnum = @prtnum
+            and inv.lotnum = @lotnum
+            and inv.stoloc = lm.stoloc
+            and lm.arecod = am.arecod
+            and lm.wh_id = am.wh_id
+	    and loc_typ.fwiflg = 1
+	    and loc_typ.loc_typ_id = lm.loc_typ_id
+	    and loc_typ.wh_id = lm.wh_id
+            /*and am.fwiflg = 1*/
+            and am.wh_id = inv.wh_id] catch(1403) >> invres
+    }
+    |
+    convert column results to string
+     where resultset = @invres
+       and colnam = 'dtlnum'
+       and separator = ','
+    |
+    create lens inventory hold
+     where prc_hldnum = @hldnum
+       and hold_prefix = @hldpfx
+       and prc_lngdsc = @lngdsc
+       and prc_hold_rsn_tx = @hold_rsn_txt
+       and prc_hold_alcflg = @alcflg
+       and prc_hold_shpflg = @shpflg
+       and hldtyp = 'Q'
+       and dtlnum_list = @result_string
+       and @*
+
+
+]]>
+</local-syntax>
+</command>

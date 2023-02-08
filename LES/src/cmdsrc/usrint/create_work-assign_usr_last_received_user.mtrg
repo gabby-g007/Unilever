@@ -1,0 +1,74 @@
+<trigger>
+
+<name>assign usr last received user</name>
+
+<on-command>create work</on-command>
+
+<fire-sequence>100</fire-sequence>
+
+<local-syntax>
+<![CDATA[
+
+   /*
+    * UNI-983: Katta, Dayakar: 28-Mar-2022
+    * This new trigger is added to do below,
+    * Check if the current work created is receiving.
+    * If yes, the new work created for receiving should get assigned to the same user who received last if any already received.
+    */
+    [select 'X'
+       from poldat_view
+      where polcod = 'USR-UNILEVER'
+        and polvar = 'RECEIVING'
+        and polval = 'ONE-USER-TO-TRAILER'
+        and wh_id = @wh_id
+        and rtnum1 = 1
+        and rownum < 2] catch(-1403)
+    |
+    if (@? = 0 and @oprcod = 'RCV')
+    {
+        [select wrkhst.ack_usr_id,
+                wrkhst.effpri
+           from wrkhst
+          where wrkhst.refloc = @refloc
+            and wrkhst.srcloc = @srcloc
+            and wrkhst.oprcod = 'RCV'
+            and wrkhst.wh_id = @wh_id
+            and wrkhst.wrksts = 'CMPL'
+            and wrkhst.ackdte = (select max(wrk.ackdte)
+                                   from wrkhst wrk
+                                  where wrk.refloc = wrkhst.refloc
+                                    and wrk.srcloc = wrkhst.srcloc
+                                    and wrk.oprcod = wrkhst.oprcod
+                                    and wrk.wrksts = 'CMPL'
+                                    and wrk.wh_id = wrkhst.wh_id)] catch(-1403)
+        |
+        if (@ack_usr_id is not null)
+        {
+            change work
+             where reqnum = @reqnum
+               and asg_usr_id = @ack_usr_id
+               and wh_id = @wh_id
+               and effpri = @effpri
+        }
+    }
+  
+]]>
+</local-syntax>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+    <p>
+    This trigger is being used to set the assign user id and effective priority.
+    Last directed work, performed user and effective priority will be retained
+    </p>
+]]>
+</remarks>
+
+<seealso cref="create work"></seealso>
+<seealso cref="change work"></seealso>
+
+</documentation>
+
+</trigger>

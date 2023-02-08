@@ -1,0 +1,1031 @@
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_def
+SL_VERSION,alg_id,alg_grp_id,alg_typ_cd,alg_descr,need_evt_flg,need_evt_arg_flg,need_next_eo_seg_flg,need_this_eo_seg_flg,var_arg_list_flg,overstack_arg_flg,always_local_flg,code,code_len
+2021.1,'LIST_LMS_ASN_DETAILS_RM','SL_RETR_MTHD_IMPL','MOCA','Generate Labor Transaction Data','F','F','F','F','F','F','T','generate labor transaction data
+    where lmsasn = :i_c_lmsasn
+        and lmscod = :i_c_lmscod
+        and wh_id   = :i_c_wh_id','128'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_def
+SL_VERSION,alg_id,alg_grp_id,alg_typ_cd,alg_descr,need_evt_flg,need_evt_arg_flg,need_next_eo_seg_flg,need_this_eo_seg_flg,var_arg_list_flg,overstack_arg_flg,always_local_flg,code,code_len
+2021.1,'LEF_GET_DEF_LM_CLIENT_IF_NULL','SL_IFD_FLD','MOCA','Get Default Client ID IF passed in Item Client ID is Null','F','F','F','F','F','F','T','sl_get sys_data_attr where sys_id = :i_c_evt_sys_id
+|
+[select LPAD(@nochg_ind_char, length(:i_c_prt_client_id), @nochg_ind_char) nochg_char,
+        LPAD(@absent_ind_char, length(:i_c_prt_client_id), @absent_ind_char) abs_char
+   from dual]
+|
+if (:i_c_prt_client_id = '''' or
+    :i_c_prt_client_id = @abs_char or
+    :i_c_prt_client_id = @nochg_char)
+{
+    sl_get sys_parm where parm_id = ''SL_DCS_HOST_CLIENT_ID''
+}
+else
+    publish data where client_id = :i_c_prt_client_id','472'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_def
+SL_VERSION,alg_id,alg_grp_id,alg_typ_cd,alg_descr,need_evt_flg,need_evt_arg_flg,need_next_eo_seg_flg,need_this_eo_seg_flg,var_arg_list_flg,overstack_arg_flg,always_local_flg,code,code_len
+2021.1,'GET_CST_SUP_NUM','SL_IFD_FLD','MOCA','Get customer or supplier number(if customer number has value, just use it)','F','F','F','F','F','F','F','
+if(:i_c_cstnum)
+{
+    publish data where cstnum = :i_c_cstnum
+}
+else
+{
+    publish data where supnum = :i_c_supnum
+}','117'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_def
+SL_VERSION,alg_id,alg_grp_id,alg_typ_cd,alg_descr,need_evt_flg,need_evt_arg_flg,need_next_eo_seg_flg,need_this_eo_seg_flg,var_arg_list_flg,overstack_arg_flg,always_local_flg,code,code_len
+2021.1,'GET_OUB_VOLUME','SL_IFD_FLD','MOCA','Algorithm to convert the Mass measurements in the outbound transactions as per the To-Host policies.','F','F','F','F','F','F','T','publish data where fld_data = to_number(:i_n_ifd_fld_data)
+|
+[select rtstr2 mu
+   from poldat
+  where polcod     = ''HOST-MU''
+    and polvar     = :i_c_dest_sys_id
+    and polval     = ''VOLUME''
+    and (rtstr1    = :i_c_ifd_fld_id
+        or rtstr1  = ''DEFAULT'')
+    and wh_id_tmpl = :i_c_whseid
+    and rownum < 2
+  order by srtseq desc] catch(-1403)
+|
+if (@? = -1403)
+{
+  [select rtstr2 mu
+   from poldat
+  where polcod     = ''HOST-MU''
+    and polvar     = :i_c_dest_sys_id
+    and polval     = ''VOLUME''
+    and (rtstr1    = :i_c_ifd_fld_id
+        or rtstr1  = ''DEFAULT'')
+    and wh_id_tmpl = ''----''
+    and rownum < 2
+  order by srtseq desc] catch(-1403)
+}
+else
+{
+   publish data where mu = @mu
+}
+|
+if (@mu != '' '')
+{
+    [select cf_numerator cfn,  cf_denominator cfd
+       from mu_mst
+      where mu = @mu] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        publish data where fld_data = @fld_data * @cfd / @cfn
+    }
+}
+|
+
+/*
+
+As the field length of the mass fields in LM transactions are
+less, we need to do a substr to avoid the possible truncations
+due to the trimming of characters in transactions.
+
+*/
+
+if (:i_c_evt_id = ''LM-TRANS'')
+{
+    publish data where fld_data = substr(@fld_data,1,8)
+    |
+    [select round(@fld_data,4) fld_data
+       from dual]
+}
+else
+{
+    publish data where fld_data = @fld_data
+}','1316'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_def
+SL_VERSION,alg_id,alg_grp_id,alg_typ_cd,alg_descr,need_evt_flg,need_evt_arg_flg,need_next_eo_seg_flg,need_this_eo_seg_flg,var_arg_list_flg,overstack_arg_flg,always_local_flg,code,code_len
+2021.1,'GET_OUB_MASS','SL_IFD_FLD','MOCA','Algorithm to convert the Mass measurements in the outbound transactions as per the To-Host policies.','F','F','F','F','F','F','T','publish data where fld_data = to_number(:i_n_ifd_fld_data)
+|
+[select rtstr2 mu
+   from poldat
+  where polcod     = ''HOST-MU''
+    and polvar     = :i_c_dest_sys_id
+    and polval     = ''MASS''
+    and (rtstr1    = :i_c_ifd_fld_id
+        or rtstr1  = ''DEFAULT'')
+    and wh_id_tmpl = :i_c_whseid
+    and rownum < 2
+  order by srtseq desc] catch(-1403)
+|
+if (@? = -1403)
+{
+  [select rtstr2 mu
+   from poldat
+  where polcod     = ''HOST-MU''
+    and polvar     = :i_c_dest_sys_id
+    and polval     = ''MASS''
+    and (rtstr1    = :i_c_ifd_fld_id
+        or rtstr1  = ''DEFAULT'')
+    and wh_id_tmpl = ''----''
+    and rownum < 2
+  order by srtseq desc] catch(-1403)
+}
+else
+{
+   publish data where mu = @mu
+}
+|
+if (@mu != '' '')
+{
+    [select cf_numerator cfn,  cf_denominator cfd
+       from mu_mst
+      where mu = @mu] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        publish data where fld_data = @fld_data * @cfd / @cfn
+    }
+}
+|
+
+/*
+
+As the field length of the mass fields in LM transactions are
+less, we need to do a substr to avoid the possible truncations
+due to the trimming of characters in transactions.
+
+*/
+
+if (:i_c_evt_id = ''LM-TRANS'')
+{
+    publish data where fld_data = substr(@fld_data,1,8)
+    |
+    [select round(@fld_data,4) fld_data
+       from dual]
+}
+else
+{
+    publish data where fld_data = @fld_data
+}','1312'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_def
+SL_VERSION,alg_id,alg_grp_id,alg_typ_cd,alg_descr,need_evt_flg,need_evt_arg_flg,need_next_eo_seg_flg,need_this_eo_seg_flg,var_arg_list_flg,overstack_arg_flg,always_local_flg,code,code_len
+2021.1,'LM_CHECK_IF_DIRECT_104','SL_IFD_SEG_BLOCK','MOCA','Determine if a Direct transaction','F','F','F','F','F','F','T','if (:i_c_lmscod != ''D'')
+{
+    publish data where blkval=''F''
+}
+else
+{
+    publish data where blkval = ''T''
+}','106'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_def
+SL_VERSION,alg_id,alg_grp_id,alg_typ_cd,alg_descr,need_evt_flg,need_evt_arg_flg,need_next_eo_seg_flg,need_this_eo_seg_flg,var_arg_list_flg,overstack_arg_flg,always_local_flg,code,code_len
+2021.1,'UC_CONVERT_TIMEZONE_LM','SL_IFD_FLD','MOCA','Convert date for LM system','F','F','F','F','F','F','T','if (:i_c_lmscod = ''D'')
+{
+    publish data
+     where date_to_convert = :I_D_IFD_FLD_DATA
+}
+else
+{
+    publish data
+     where date_to_convert = :I_D_BEGDTE
+}
+|
+if (@date_to_convert = '''')
+{
+    publish data
+     where datetime = @date_to_convert
+}
+else
+{
+    [select distinct rtstr1 frm_timezone,
+            rtstr2 to_timezone
+       from poldat_view
+      where polcod = ''USR-UNILEVER-LM''
+        and polvar = ''LM-INTEGRATION''
+        and polval = ''TIME-ZONE-CONVERSION''
+        and rtnum1 = 1
+        and wh_id = :i_c_wh_id] catch(510, -1403)
+    |
+    if (@? = ''0'')
+    {
+        convert time zone
+         where dt_in = @date_to_convert
+           and src_tz = @frm_timezone
+           and dst_tz = @to_timezone
+        |
+        publish data
+         where datetime = to_date(@cvt_tim_out, ''YYYYMMDDHH24MISS'')
+    }
+    else
+    {
+        publish data
+         where datetime = to_date(@date_to_convert, ''YYYYMMDDHH24MISS'')
+    }
+    |
+    if (:i_c_ifd_fld_id = ''SGNTIM'' and :i_c_lmscod != ''D'')
+    {
+        publish data
+         where datetime = to_char(@datetime, ''HH24MISS'')
+    }
+    else if (:i_c_ifd_fld_id = ''SGNDTE'' and :i_c_lmscod != ''D'')
+    {
+        publish data
+         where datetime = to_char(@datetime, ''MMDDYYYY'')
+    }
+    else
+    {
+        publish data
+         where datetime = @datetime
+    }
+}','1323'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_def
+SL_VERSION,alg_id,alg_grp_id,alg_typ_cd,alg_descr,need_evt_flg,need_evt_arg_flg,need_next_eo_seg_flg,need_this_eo_seg_flg,var_arg_list_flg,overstack_arg_flg,always_local_flg,code,code_len
+2021.1,'LM_CHECK_IF_INDIRECT','SL_IFD_SEG_BLOCK','MOCA','Validate if Indirect','F','F','F','F','F','F','T','if (:i_c_lmscod != ''I'')
+{
+    publish data where blkval=''F''
+}
+else
+{
+    publish data where blkval = ''T''
+}','106'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'LIST_LMS_ASN_DETAILS_RM','I_C_LMSASN',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'LIST_LMS_ASN_DETAILS_RM','I_C_LMSCOD',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'LIST_LMS_ASN_DETAILS_RM','I_C_WH_ID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'LEF_GET_DEF_LM_CLIENT_IF_NULL','I_C_EVT_SYS_ID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'LEF_GET_DEF_LM_CLIENT_IF_NULL','I_C_PRT_CLIENT_ID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_CST_SUP_NUM','I_C_CSTNUM',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_CST_SUP_NUM','I_C_SUPNUM',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_OUB_VOLUME','I_C_DEST_SYS_ID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_OUB_VOLUME','I_C_EVT_ID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_OUB_VOLUME','I_C_IFD_FLD_ID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_OUB_VOLUME','I_C_WHSEID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_OUB_VOLUME','I_N_IFD_FLD_DATA',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_OUB_MASS','I_C_DEST_SYS_ID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_OUB_MASS','I_C_EVT_ID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_OUB_MASS','I_C_IFD_FLD_ID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_OUB_MASS','I_C_WHSEID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'GET_OUB_MASS','I_N_IFD_FLD_DATA',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'LM_CHECK_IF_DIRECT_104','I_C_LMSCOD',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'UC_CONVERT_TIMEZONE_LM','I_C_IFD_FLD_ID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'UC_CONVERT_TIMEZONE_LM','I_C_LMSCOD',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'UC_CONVERT_TIMEZONE_LM','I_C_WH_ID',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'UC_CONVERT_TIMEZONE_LM','I_D_BEGDTE',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'UC_CONVERT_TIMEZONE_LM','I_D_IFD_FLD_DATA',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_alg_in_bnd_var
+SL_VERSION,alg_id,in_bnd_var_id,bnd_var_tag
+2021.1,'LM_CHECK_IF_INDIRECT','I_C_LMSCOD',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_def_grp
+SL_VERSION,sys_grp_id,sys_grp_descr
+2021.1,'LS','Group - LES'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_def_grp
+SL_VERSION,sys_grp_id,sys_grp_descr
+2021.1,'DLX','DLX product systems (Scorecard, LM Host System etc)'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_def_grp
+SL_VERSION,sys_grp_id,sys_grp_descr
+2021.1,'VC_HOST','Unilever HOST System'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_def
+SL_VERSION,sys_id,sys_descr,native_nam,sys_grp_id,ena_flg,sl_host_sys_flg,i_commit_ctxt_defn_cd,pre_async_alg_id,post_async_alg_id,pre_dwnld_alg_id,post_dwnld_alg_id,fail_evt_id,prsrv_evt_seq_flg,snd_err_stat_flg,rcv_fail_evt_id,rcv_succ_evt_id,null_ind_char,nochg_ind_char,absent_ind_char,eol_delim,mailbox_nam,host_port,host_nam,service,sys_user_id,sys_password,sys_conn_data,moca_sys_flg,xml_tag_data_inst,xml_tag_ifd,xml_tag_data,max_grp_siz
+2021.1,'DCS','DCS Warehouse Management System','DCS','LS','T','T','COMM','','','','','','F','T','','','','*','+','','','','','','','','','T','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_def
+SL_VERSION,sys_id,sys_descr,native_nam,sys_grp_id,ena_flg,sl_host_sys_flg,i_commit_ctxt_defn_cd,pre_async_alg_id,post_async_alg_id,pre_dwnld_alg_id,post_dwnld_alg_id,fail_evt_id,prsrv_evt_seq_flg,snd_err_stat_flg,rcv_fail_evt_id,rcv_succ_evt_id,null_ind_char,nochg_ind_char,absent_ind_char,eol_delim,mailbox_nam,host_port,host_nam,service,sys_user_id,sys_password,sys_conn_data,moca_sys_flg,xml_tag_data_inst,xml_tag_ifd,xml_tag_data,max_grp_siz
+2021.1,'UC_LM','Host System For LM: handles internal events, documents only','UC_LM','VC_HOST','T','F','IFD','','','','','','F','F','','','','*','+','<10>','','','','','','','','F','MsgData','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_def_grp
+SL_VERSION,ifd_grp_id,ifd_grp_descr
+2021.1,'LEF TRANSACTION IFD','LEF IFD'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_retr_mthd_def
+SL_VERSION,retr_mthd_id,retr_mthd_descr
+2021.1,'LM-TRANS','Retrieves LM Data from the DCS DB'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_retr_mthd_impl_def
+SL_VERSION,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,retr_mthd_impl_cd,alg_id
+2021.1,'LM-TRANS','SYS_DCS','DCS','','','','ALG','LIST_LMS_ASN_DETAILS_RM'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sql_crsr_component
+SL_VERSION,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,component_ordr,sql_set_oper,sql_code,sql_code_len
+2021.1,'LM-TRANS','SYS_DCS','DCS','','','','0','0','','from lmstrn where lmsasn = :i_c_lmsasn
+order by grpseq','54'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_evt_def_grp
+SL_VERSION,evt_grp_id,evt_grp_descr
+2021.1,'LEF TRANSACTION EVENTS','Logistic Execution Foundation Events'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_evt_def
+SL_VERSION,evt_id,evt_descr,log_evt_flg,evt_grp_id
+2021.1,'LM-TRANS','DCS LMS Event','F','LEF TRANSACTION EVENTS'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_evt_arg_def
+SL_VERSION,evt_id,evt_arg_id,evt_arg_descr,data_typ_cd,require_flg
+2021.1,'LM-TRANS','LMSASN','Assignment Number','C','T'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_evt_arg_def
+SL_VERSION,evt_id,evt_arg_id,evt_arg_descr,data_typ_cd,require_flg
+2021.1,'LM-TRANS','LMSCOD','LMS Code (Direct/Indirect)','C','T'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_evt_arg_def
+SL_VERSION,evt_id,evt_arg_id,evt_arg_descr,data_typ_cd,require_flg
+2021.1,'LM-TRANS','WH_ID','Warehouse ID','C','T'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_def
+SL_VERSION,eo_id,eo_ver,eo_descr,evt_id,always_create_flg
+2021.1,'LM DATA','2012.2','DCS LM Transaction Data','LM-TRANS','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_seg
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_seg_descr,parent_eo_id,parent_eo_ver,parent_eo_seg_id,blk_alg_id,blk_alg_eval_cd,retr_mthd_id,eo_seg_ordr
+2021.1,'LM DATA','2012.2','TRANS','LM DATA','','','','','','LM-TRANS','1'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','ADRNUM','Address Number','C','20','','80','20'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','ASLARE','ASL ARE','C','220','','60','15'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','ASSIGN_FLG','Assignment Flag','N','260','','1',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','BEGDTE','Sign-on Date','D','200','','14',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','CASQTY','Case Quantity','N','110','','4',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','CSTNUM','Customer Number','C','290','','20',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','DISC_PROC_ID','DISC_PROC_ID','C','270','','160','40'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','EQPTYP','Equipment Type','C','250','','40','10'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','GRPSEQ','Group Sequence','N','10','','4',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','INPQTY','Inp Quantity','N','120','','4',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','LAYQTY','Layer Quantity','N','100','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','LMSCOD','Labor Management Code','C','30','','4','1'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','LMSTYP','Labor Management Type','C','40','','4','1'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','LMSWRK','LMS Work','C','50','','60','15'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','LODNUM','LPN','C','240','','120','30'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','LSTFLG','Last Flag','N','230','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','OPRCOD','Operation Code','C','60','','36','9'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','PALQTY','Pallet Quantity','N','90','','10',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','PLNDTE','Planned Date','D','210','','14',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','PROC_REPETITION','PROC_REPETITION','N','280','','4',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','PRT_CLIENT_ID','Item Client ID','C','150','','128','32'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','PRTDSC','Item Description','C','160','','1000','250'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','PRTNUM','Item Number','C','140','','200','50'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','REF_ID','Reference ID','C','70','','120','30'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','STOLOC','Storage Location','C','80','','80','20'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','SUPNUM','Suppiler Number','C','300','','32',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','TRLR_NUM','Tralier Number','C','310','','20',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','UNTQTY','Unit Quantity','N','130','','10',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','UNTVOL','Unit Volume','N','170','','8',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','UNTWGT','Unit Weight','N','180','','8',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','USER_DEF_1','User Field 1','C','320','','40',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','USER_DEF_2','User Field 2','C','330','','40',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','USER_DEF_3','User Field 3','C','340','','40',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','USER_DEF_4','User Field 4','C','350','','40',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','USER_DEF_5','User Field 5','C','360','','40',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_fld
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,eo_fld_descr,data_typ_cd,eo_fld_ordr,eo_fld_sql_ordr,eo_fld_len,eo_fld_max_chars
+2021.1,'LM DATA','2012.2','TRANS','USER_ID','User ID','C','190','','160','40'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','ADRNUM','LM-TRANS','SYS_DCS','DCS','','','','0','adrnum','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','ASLARE','LM-TRANS','SYS_DCS','DCS','','','','0','aslare','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','ASSIGN_FLG','LM-TRANS','SYS_DCS','DCS','','','','0','assign_flg','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','BEGDTE','LM-TRANS','SYS_DCS','DCS','','','','0','begdte','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','CASQTY','LM-TRANS','SYS_DCS','DCS','','','','0','casqty','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','CSTNUM','LM-TRANS','SYS_DCS','DCS','','','','0','cstnum','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','DISC_PROC_ID','LM-TRANS','SYS_DCS','DCS','','','','0','disc_proc_id','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','EQPTYP','LM-TRANS','SYS_DCS','DCS','','','','0','eqptyp','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','GRPSEQ','LM-TRANS','SYS_DCS','DCS','','','','0','grpseq','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','INPQTY','LM-TRANS','SYS_DCS','DCS','','','','0','inpqty','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','LAYQTY','LM-TRANS','SYS_DCS','DCS','','','','0','layqty','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','LMSCOD','LM-TRANS','SYS_DCS','DCS','','','','0','lmscod','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','LMSTYP','LM-TRANS','SYS_DCS','DCS','','','','0','lmstyp','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','LMSWRK','LM-TRANS','SYS_DCS','DCS','','','','0','lmswrk','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','LODNUM','LM-TRANS','SYS_DCS','DCS','','','','0','lodnum','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','LSTFLG','LM-TRANS','SYS_DCS','DCS','','','','0','lstflg','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','OPRCOD','LM-TRANS','SYS_DCS','DCS','','','','0','oprcod','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','PALQTY','LM-TRANS','SYS_DCS','DCS','','','','0','palqty','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','PLNDTE','LM-TRANS','SYS_DCS','DCS','','','','0','plndte','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','PROC_REPETITION','LM-TRANS','SYS_DCS','DCS','','','','0','proc_repetition','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','PRT_CLIENT_ID','LM-TRANS','SYS_DCS','DCS','','','','0','prt_client_id','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','PRTDSC','LM-TRANS','SYS_DCS','DCS','','','','0','prtdsc','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','PRTNUM','LM-TRANS','SYS_DCS','DCS','','','','0','prtnum','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','REF_ID','LM-TRANS','SYS_DCS','DCS','','','','0','srcloc','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','STOLOC','LM-TRANS','SYS_DCS','DCS','','','','0','stoloc','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','SUPNUM','LM-TRANS','SYS_DCS','DCS','','','','0','supnum','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','TRLR_NUM','LM-TRANS','SYS_DCS','DCS','','','','0','trlr_num','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','UNTQTY','LM-TRANS','SYS_DCS','DCS','','','','0','untqty','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','UNTVOL','LM-TRANS','SYS_DCS','DCS','','','','0','untvol','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','UNTWGT','LM-TRANS','SYS_DCS','DCS','','','','0','untwgt','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','USER_DEF_1','LM-TRANS','SYS_DCS','DCS','','','','0','user_def_1','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','USER_DEF_2','LM-TRANS','SYS_DCS','DCS','','','','0','user_def_2','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','USER_DEF_3','LM-TRANS','SYS_DCS','DCS','','','','0','user_def_3','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','USER_DEF_4','LM-TRANS','SYS_DCS','DCS','','','','0','user_def_4','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','USER_DEF_5','LM-TRANS','SYS_DCS','DCS','','','','0','user_def_5','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_eo_col
+SL_VERSION,eo_id,eo_ver,eo_seg_id,eo_fld_id,retr_mthd_id,retr_mthd_impl_genid,sys_id,ifd_id,ifd_ver,ifd_seg_id,sql_component_seq,sql_crsr_col,grp_by_flg
+2021.1,'LM DATA','2012.2','TRANS','USER_ID','LM-TRANS','SYS_DCS','DCS','','','','0','usr_id','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_def
+SL_VERSION,ifd_id,ifd_ver,ifd_descr,ifd_typ_cd,data_lay_id,ifd_grp_id,eo_id,eo_ver,root_seg_rpt_brk_flg,recursive_flg,post_alg_id,pre_alg_id,ifd_tag,post_proc_flg
+2021.1,'DIRECT 104','2012.3','LM Transactions','O','FIXED BYTE','LEF TRANSACTION IFD','LM DATA','2012.2','F','T','','','WMS0104',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_def
+SL_VERSION,ifd_id,ifd_ver,ifd_descr,ifd_typ_cd,data_lay_id,ifd_grp_id,eo_id,eo_ver,root_seg_rpt_brk_flg,recursive_flg,post_alg_id,pre_alg_id,ifd_tag,post_proc_flg
+2021.1,'INDIRECT','2009.3','LM Transactions','O','FIXED BYTE','LEF TRANSACTION IFD','LM DATA','2012.2','F','T','','','JOB0102',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_seg
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_seg_rel_pos,ifd_seg_descr,ifd_seg_ordr,eo_id,eo_ver,eo_seg_id,pre_alg_id,post_alg_id,parent_ifd_id,parent_ifd_ver,parent_ifd_seg_id,blk_alg_id,blk_alg_eval_cd,proc_alg_id,xml_use_seg_tag_flg,ifd_seg_tag,sib_is_rel_flg,sync_with_eo_flg,ifd_seg_ol_attr_cd
+2021.1,'DIRECT 104','2012.3','TRANS','','LM Trans Data','','LM DATA','2012.2','TRANS','','','','','','','','','T','WMS0104_SEG','','','XTXTN'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_seg
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_seg_rel_pos,ifd_seg_descr,ifd_seg_ordr,eo_id,eo_ver,eo_seg_id,pre_alg_id,post_alg_id,parent_ifd_id,parent_ifd_ver,parent_ifd_seg_id,blk_alg_id,blk_alg_eval_cd,proc_alg_id,xml_use_seg_tag_flg,ifd_seg_tag,sib_is_rel_flg,sync_with_eo_flg,ifd_seg_ol_attr_cd
+2021.1,'INDIRECT','2009.3','TRANS','','LM Trans Data','','LM DATA','2012.2','TRANS','','','','','','','','','T','JOB0102_SEG','','','XTXTN'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','ASGNUM','Assignment Number','50','ASSIGN_NUM','','','','','LM-TRANS','LMSASN','','','EA','C','','','','','','','','N','','N','','','15','','','','','','','','15'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','ASSIGN_FLG','Assignment Flag','470','ASSIGNMENT_FLG','LM DATA','2012.2','TRANS','ASSIGN_FLG','','','','','EO','N','','','','','','','','N','','N','','','1','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','CLIENT_ID','CLIENT ID','90','CLIENT_ID','','','','','','','','','ALG','C','LEF_GET_DEF_LM_CLIENT_IF_NULL','','','','','','','N','','N','','','32','','','','','','','','32'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','COPY_SEQ_NUM','COPY_SEQ_NUM','420','COPY_SEQ_NUM','','','','','','','','','CO','C','','','','','','','','N','','N','','','4','','','','','','','','4'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','CST_SUP_NUM','Customer Number or Supplier Number','480','CSTNUM','','','','','','','','','CO','C','GET_CST_SUP_NUM','','','','','','','N','','N','','','1','','F','','','','F','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','CWKTYP','Work type','140','WORKTYPE_ID','LM DATA','2012.2','TRANS','LMSWRK','','','','','EO','C','','','','','','','','N','','N','','','15','','T','','','','','','15'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','DISC_PROC_ID','DISCRETE_PROC_ID','430','DISCRETE_PROC_ID','','','','','','','','','CO','C','','','','','','','','N','','N','','','40','','F','','','','F','','40'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','DRCTYP','Direct Type','10','RECTYPE','','','','','','','','','CO','C','','','','WMS0104','','','','N','','N','','','15','','','','','','','','15'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','EDFUNC','ED Function','20','FUNC_ID','','','','','','','','','EEU','C','','','','','decode(:lstflg,0,''N'',''A'')','','','N','','N','','','1','','','','','','','','1'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','EQPTYP','Machine Type','150','MACHINEID','LM DATA','2012.2','TRANS','EQPTYP','','','','','EO','C','','','','','','','','N','','N','','','10','','','','','','','','10'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','GANRSP','GAN RSP','290','RESPONSE_TYPE','','','','','','','','','CO','C','','','','0','','','','N','','N','','','1','','','','','','','','1'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','GRPSEQ','Group Sequence','30','SEQ_NUM','LM DATA','2012.2','TRANS','GRPSEQ','','','','','EO','N','','','','','','','','N','0999','N','','','4','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','LMSTYP','LMS Work Type (Direct/Indirect)','130','ACTIVITY_TYPE','LM DATA','2012.2','TRANS','LMSTYP','','','','','EO','C','','','','','','','','N','','N','','','1','','','','','','','','1'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','LNGDSC','Item Description','250','ITEM_DESC','LM DATA','2012.2','TRANS','PRTDSC','','','','','EO','C','','','','','','','','N','','N','','','40','','','','','','','','40'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','LODNUM','LPN (Container License)','110','CONTAINER_LICENSE','LM DATA','2012.2','TRANS','LODNUM','','','','','EO','C','','','','','','','','N','','N','','','30','','','','','','','','30'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','LSTDMV','List Discrete Move Flag','450','LAST_DISCRETE_MOVE','LM DATA','2012.2','TRANS','LSTFLG','','','','','EO','N','','','','','','','','N','9','N','','','1','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','NUMCAS','Number of Cases','200','NUM_CASE','LM DATA','2012.2','TRANS','CASQTY','','','','','EO','N','','','','','','','','R','09999999','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','NUMEA','Number of Eaches','220','NUM_EACH','LM DATA','2012.2','TRANS','UNTQTY','','','','','EO','N','','','','','','','','N','09999999','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','NUMINP','Number of Inner Packs','210','NUM_INNER','LM DATA','2012.2','TRANS','INPQTY','','','','','EO','N','','','','','','','','N','09999999','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','NUMLAY','Number of Layer','190','NUM_LAYER','','','','','','','','','CO','N','','','','00000000','','','','R','09999999','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','NUMPAL','Number of Pallets','180','NUM_PALLET','LM DATA','2012.2','TRANS','PALQTY','','','','','EO','N','','','','','','','','R','09999999','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','NUMSHP','Number of Shipments','230','NUM_SHIP','','','','','','','','','EEU','N','','','','','to_char(decode(:lmstyp, ''P'', 0, :palqty + :casqty +:inpqty + :untqty),09999999)','','','N','09999999','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','PLNDTE','Seq Date','60','PLAN_DATE','LM DATA','2012.2','TRANS','PLNDTE','','','','','EO','D','UC_CONVERT_TIMEZONE_LM','','','','','','','N','YYYYMMDD','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','PROC_REPETITION','PROC_REPETITION','440','PROC_REPETITION','LM DATA','2012.2','TRANS','PROC_REPETITION','','','','','EO','N','','','','','','','','N','','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','PRTNUM','Item Number','240','ITEM_NUM','LM DATA','2012.2','TRANS','PRTNUM','','','','','EO','C','','','','','','','','N','','N','','','30','','','','','','','','50'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','REF_ID','Reference ID','80','REF_ID','LM DATA','2012.2','TRANS','REF_ID','','','','','EO','C','','','','','','','','N','','N','','','30','','','','','','','','30'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','RTENUM','Route Number','120','','','','','','','','','','CO','C','','','','','','','','N','','N','','','17','','','','','','','','17'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','SGNDTE','Sign-on Date','410','SIGN_ON_TIME','','','','','','','','','EEU','D','UC_CONVERT_TIMEZONE_LM','','','','decode(:lstflg, 0, '' '', :plndte)','','','N','YYYYMMDDHH24MISS','N','','','14','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','SPHAND1','Special Handling Flag','300','SPECIAL_1','','','','','','','','','CO','C','','','','0','','','','N','','N','','','8','','','','','','','','8'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','SPHAND2','Special Handling Flag','310','SPECIAL_2','','','','','','','','','CO','C','','','','0','','','','N','','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','SPHAND3','Special Handling Flag','320','SPECIAL_3','','','','','','','','','CO','C','','','','0','','','','N','','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','SPHAND4','Special Handling Flag','330','SPECIAL_4','','','','','','','','','CO','C','','','','0','','','','N','','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','SPHAND5','Special Handling Flag','340','SPECIAL_5','','','','','','','','','CO','C','','','','0','','','','N','','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','SPLIT_INDICATOR','Split Indicator portion of the Assignment Number','70','SPLIT_INDICATOR','','','','','','','','','CO','C','','','','','','','','N','','N','','','1','','','','','','','','1'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','STCUST','STCUST','100','','LM DATA','2012.2','TRANS','ADRNUM','','','','','EO','C','','','','','','','','N','','N','','','20','','','','','','','','20'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','STOLOC','Storage Location','170','CLIENT_SLOT_ID','LM DATA','2012.2','TRANS','STOLOC','','','','','EO','C','','','','','','','','N','','N','','','20','','','','','','','','20'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','TRLR_NUM','Tralier Number','490','ROUTE_NUM','','','','','','','','','CO','C','','','','','','','','N','','N','','','1','','F','','','','F','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','TRNNUM','Transaction Number','40','TRANS_NUM','LM DATA','2012.2','TRANS','GRPSEQ','','','','','EO','N','','','','','','','','N','099999999999999','N','','','15','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','UNTVOL','Unit Volume','255','CUBE','LM DATA','2012.2','TRANS','UNTVOL','','','','','EO','N','GET_OUB_VOLUME','','','','','','','N','09999.99','L','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','UNTWGT','Unit Weight','270','WEIGHT','LM DATA','2012.2','TRANS','UNTWGT','','','','','EO','N','GET_OUB_MASS','','','','','','','N','09999.99','L','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','USR_ID','User ID','400','USR_ID','','','','','','','','','EEU','C','','','','','decode(:lstflg, 0, '' '',:user_id)','','','N','','N','','','40','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','USRDEF1','User Field 1','350','USER_DEF_1','LM DATA','2012.2','TRANS','USER_DEF_1','','','','','EO','C','','','','','','','','N','','N','','','10','','T','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','USRDEF2','User Field 2','360','USER_DEF_2','LM DATA','2012.2','TRANS','USER_DEF_2','','','','','EO','C','','','','','','','','N','','N','','','10','','T','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','USRDEF3','User Field 3','370','USER_DEF_3','LM DATA','2012.2','TRANS','USER_DEF_3','','','','','EO','C','','','','','','','','N','','N','','','5','','T','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','USRDEF4','User Field 4','380','USER_DEF_4','LM DATA','2012.2','TRANS','USER_DEF_4','','','','','EO','C','','','','','','','','N','','N','','','25','','T','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','USRDEF5','User Field 5','390','USER_DEF_5','LM DATA','2012.2','TRANS','USER_DEF_5','','','','','EO','C','','','','','','','','N','','N','','','17','','T','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'DIRECT 104','2012.3','TRANS','WHSEID','Warehouse ID','160','WAREHOUSE_ID','','','','','LM-TRANS','WH_ID','','','EA','C','','','','','','','','N','','N','','','32','','','','','','','','32'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'INDIRECT','2009.3','TRANS','ASGNUM','Assignment Number','20','ASSIGN_NUM','','','','','LM-TRANS','LMSASN','','','EA','C','','','','','','','','L','','N','','','15','','','','','','','','15'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'INDIRECT','2009.3','TRANS','ASLARE','ASL Area','70','AISLE_AREA_ID','LM DATA','2012.2','TRANS','ASLARE','','','','','EO','C','','','','','','','','L','','N','','','10','','','','','','','','10'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'INDIRECT','2009.3','TRANS','CLIENT_ID','Client ID: Client reference for customer specific assignments.','90','CLIENT_ID','LM DATA','2012.2','TRANS','PRT_CLIENT_ID','','','','','EO','C','','','','','','','','N','','N','','','10','','','','','','','','10'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'INDIRECT','2009.3','TRANS','CSTNUM','Customer ID: Customer reference for customer specific assignments.','100','CSTNUM','','','','','','','','','CO','C','','','','','','','','N','','N','','','20','','','','','','','','20'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'INDIRECT','2009.3','TRANS','DRCTYP','Indirect Type','10','RECORDTYPE','','','','','','','','','CO','C','','','','JOB0102','','','','L','','N','','','15','','','','','','','','15'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'INDIRECT','2009.3','TRANS','JOBCOD','Job Code','60','JOBCODEID','LM DATA','2012.2','TRANS','LMSWRK','','','','','EO','C','','','','','','','','L','','N','','','10','','','','','','','','10'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'INDIRECT','2009.3','TRANS','SGNDTE','Signature Date','80','PLAN_DATE','LM DATA','2012.2','TRANS','BEGDTE','','','','','EO','D','UC_CONVERT_TIMEZONE_LM','','',':BEGDTE','','','','L','MMDDYYYY','N','','','8','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'INDIRECT','2009.3','TRANS','SGNTIM','Signature time','40','START_TIME','LM DATA','2012.2','TRANS','BEGDTE','','','','','EO','D','UC_CONVERT_TIMEZONE_LM','','',':BEGDTE','','','','L','HH24MISS','N','','','6','','','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'INDIRECT','2009.3','TRANS','USR_ID','User ID','30','USR_ID','LM DATA','2012.2','TRANS','USER_ID','','','','','EO','C','','','','','','','','L','','N','','','40','','','','','','','','40'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_ifd_fld
+SL_VERSION,ifd_id,ifd_ver,ifd_seg_id,ifd_fld_id,ifd_fld_descr,ifd_fld_ordr,ifd_fld_tag,eo_id,eo_ver,eo_seg_id,eo_fld_id,evt_id,evt_arg_id,eo_fld_grp_func,ifd_fld_sql_ordr,ifd_fld_class_cd,data_typ_cd,fld_alg_id,kw_id,pre_alg_bnd_var_id,fld_val,sql_expr,default_expr,change_expr,fld_jus_cd,fld_fmt,fld_trm_cd,pad_char,trm_char,ifd_fld_len,ifd_fld_attr_cd,create_only_flg,ol_fld_tag,ol_grp_func,validation_cmnt,required_flg,default_val_cmnt,ifd_fld_max_chars
+2021.1,'INDIRECT','2009.3','TRANS','WH_ID','Warehouse ID','110','WH_ID','','','','','LM-TRANS','WH_ID','','','EA','C','','','','','','','','N','','N','','','32','','','','','','','','32'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_o_ifd_sys_map
+SL_VERSION,ifd_id,ifd_ver,sys_id,blk_alg_id,blk_alg_eval_cd,comm_mode_cd,comm_mthd_id,persist_eo_flg,persist_ifd_flg,ena_flg,grp_ordr,snd_ordr,head_evt_id,tail_evt_id,succ_evt_id,fail_evt_id
+2021.1,'DIRECT 104','2012.3','UC_LM','LM_CHECK_IF_DIRECT_104','S','ASYNC','','F','F','T','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_o_ifd_sys_map
+SL_VERSION,ifd_id,ifd_ver,sys_id,blk_alg_id,blk_alg_eval_cd,comm_mode_cd,comm_mthd_id,persist_eo_flg,persist_ifd_flg,ena_flg,grp_ordr,snd_ordr,head_evt_id,tail_evt_id,succ_evt_id,fail_evt_id
+2021.1,'INDIRECT','2009.3','UC_LM','LM_CHECK_IF_INDIRECT','S','ASYNC','','F','F','T','','','','','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,head_evt_id,tail_evt_id
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FILE','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,comm_mthd_attr_val,alg_id,kw_id
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FILE','DIRECTORY','','SL_GET_ENV_VAR',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,comm_mthd_attr_val,alg_id,kw_id
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FILE','FILENAME','','SL_GEN_FILENAME_PRE',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,comm_mthd_attr_val,alg_id,kw_id
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FILE','TRGDIR','','SL_GET_ENV_VAR',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,comm_mthd_attr_val,alg_id,kw_id
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FILE','TRGFILE','','SL_GEN_FILENAME_PRE',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,comm_mthd_attr_val,alg_id,kw_id
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FTP','DESTDIR','${LESDIR}/files/hostout/import','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,comm_mthd_attr_val,alg_id,kw_id
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FTP','DESTFILE','','SL_GEN_FILENAME_PRE',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,comm_mthd_attr_val,alg_id,kw_id
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FTP','TRGDIR','${LESDIR}/files/hostout/import','',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,comm_mthd_attr_val,alg_id,kw_id
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FTP','TRGFILE','','SL_GEN_FILENAME_PRE',''
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val_bnd_data
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,alg_id,in_bnd_var_id,bnd_data
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FILE','DIRECTORY','SL_GET_ENV_VAR','I_C_IFD_FLD_MISC_DATA','UC_LM_TRANS_DIR'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val_bnd_data
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,alg_id,in_bnd_var_id,bnd_data
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FILE','FILENAME','SL_GEN_FILENAME_PRE','I_C_POST_FILENAME','.txt'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val_bnd_data
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,alg_id,in_bnd_var_id,bnd_data
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FILE','FILENAME','SL_GEN_FILENAME_PRE','I_C_USE_CURRENT','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val_bnd_data
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,alg_id,in_bnd_var_id,bnd_data
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FILE','TRGDIR','SL_GET_ENV_VAR','I_C_IFD_FLD_MISC_DATA','UC_LM_TRANS_DIR'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val_bnd_data
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,alg_id,in_bnd_var_id,bnd_data
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FILE','TRGFILE','SL_GEN_FILENAME_PRE','I_C_POST_FILENAME','.trg'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val_bnd_data
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,alg_id,in_bnd_var_id,bnd_data
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FILE','TRGFILE','SL_GEN_FILENAME_PRE','I_C_USE_CURRENT','T'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val_bnd_data
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,alg_id,in_bnd_var_id,bnd_data
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FTP','DESTFILE','SL_GEN_FILENAME_PRE','I_C_POST_FILENAME','.txt'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val_bnd_data
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,alg_id,in_bnd_var_id,bnd_data
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FTP','DESTFILE','SL_GEN_FILENAME_PRE','I_C_USE_CURRENT','F'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val_bnd_data
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,alg_id,in_bnd_var_id,bnd_data
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FTP','TRGFILE','SL_GEN_FILENAME_PRE','I_C_POST_FILENAME','.trg'
+
+CSV__TAG__KLUDGE___TABLE_NAME sl_sys_comm_val_bnd_data
+SL_VERSION,sys_id,comm_mode_cd,comm_dir_cd,comm_mthd_id,comm_mthd_attr,alg_id,in_bnd_var_id,bnd_data
+2021.1,'UC_LM','ASYNC','O','SL_IFD_TO_FTP','TRGFILE','SL_GEN_FILENAME_PRE','I_C_USE_CURRENT','T'
+
+CSV__TAG__KLUDGE___COMMIT

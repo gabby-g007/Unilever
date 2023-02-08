@@ -1,0 +1,117 @@
+<command>
+<name>list usr pickface locations</name>
+<description>List USR Pickface Locations</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'untqty,demand,pckqty,stoloc,pck_prtnum')
+|
+[/*#limit=@offset,@limit,true*/
+ select locmst.stoloc,
+        locmst.maxqvl,
+        rplcfg.prtnum,
+        locmst.arecod,
+        pck_zone.pck_zone_cod,
+        nvl((select sum((mod(shipment_line.pckqty, prtftp_view.untpal)) - (mod(mod(shipment_line.pckqty, prtftp_view.untpal), prtftp_view.caslvl)))
+               from shipment_line
+               join ord_line
+                 on shipment_line.ordnum = ord_line.ordnum
+                and shipment_line.client_id = ord_line.client_id
+                and shipment_line.wh_id = ord_line.wh_id
+                and shipment_line.ordlin = ord_line.ordlin
+                and shipment_line.ordsln = ord_line.ordsln
+               join prtftp_view
+                 on prtftp_view.prtnum = ord_line.prtnum
+                and prtftp_view.prt_client_id = ord_line.prt_client_id
+                and prtftp_view.wh_id = ord_line.wh_id
+                and prtftp_view.defftp_flg = 1
+              where ord_line.prtnum = rplcfg.prtnum
+                and shipment_line.linsts = 'P'
+                and ord_line.wh_id = locmst.wh_id), 0) demand,
+        dscmst.lngdsc locsts,
+        locmst.lstdte,
+        rplcfg.rpldte,
+        max(lstmov.trndte) lstmov,
+        max(lstpck.trndte) lstpck,
+        nvl((select sum(invsum.untqty)
+               from invsum
+              where invsum.stoloc = locmst.stoloc
+                and invsum.wh_id = locmst.wh_id), 0) untqty,
+        (select prtnum
+           from pckwrk_view
+          where pckwrk_view.srcloc = locmst.stoloc
+            and pckwrk_view.wh_id = locmst.wh_id
+            and pckwrk_view.pckqty > pckwrk_view.appqty
+            and rownum < 2) pck_prtnum,
+        nvl((select sum(pckwrk_view.pckqty - pckwrk_view.appqty)
+               from pckwrk_view
+              where pckwrk_view.srcloc = locmst.stoloc
+                and pckwrk_view.wh_id = locmst.wh_id
+                and pckwrk_view.pckqty > pckwrk_view.appqty), 0) pckqty,
+        '' as 'D'
+   from locmst
+   join dscmst
+     on dscmst.colnam = 'locsts'
+    and locmst.locsts = dscmst.colval
+    and dscmst.locale_id = nvl(@locale_id, @@locale_id)
+   left
+   join pck_zone
+     on pck_zone.pck_zone_id = locmst.pck_zone_id
+    and pck_zone.wh_id = locmst.wh_id
+   left
+   join rplcfg
+     on locmst.stoloc = rplcfg.stoloc
+    and locmst.wh_id = rplcfg.wh_id
+   left
+   join dlytrn lstmov
+     on lstmov.tostol = locmst.stoloc
+    and lstmov.wh_id = locmst.wh_id
+   left
+   join dlytrn lstpck
+     on lstpck.frstol = locmst.stoloc
+    and lstpck.wh_id = locmst.wh_id
+    and lstpck.oprcod like '%PCK%'
+  where @filterByClause:raw
+    and @+locmst.wh_id
+    and @*
+    and locmst.mov_zone_id in (select distinct mov_zone_id
+                                 from rplcfg
+                                where locmst.wh_id = rplcfg.wh_id)
+  group by locmst.stoloc,
+        locmst.arecod,
+        pck_zone.pck_zone_cod,
+        locmst.maxqvl,
+        rplcfg.prtnum,
+        dscmst.lngdsc,
+        locmst.lstdte,
+        rplcfg.rpldte,
+        locmst.wh_id
+  order by @sortOrderClause:raw]
+   
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list the Pick Face Location with Maxqvl Capacity and Assigned Item, Last Inv move date and Pick Date,
+  Last Replenishment Date.
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

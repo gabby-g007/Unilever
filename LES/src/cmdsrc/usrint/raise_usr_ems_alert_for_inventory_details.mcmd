@@ -1,0 +1,231 @@
+<command> 
+<name>raise usr ems alert for inventory details</name>
+<description>Raise EMS alert For Inventory Details</description>
+<type>Local Syntax</type>
+<local-syntax> 
+<![CDATA[
+list warehouses
+ where wh_id [not in ('WMD1' ,'----' )]
+|
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    /* We must prime the event definition */
+    publish data
+     where evt_msg = "Attached is the list of Inventory details Report. Please check"
+       and evt_subj = "USR-INVENTORY-DETAILS-REPORT- @wh_id"
+       and evt_qual = "wh_id"
+       and evt_grp = 'Reports'
+       and evt_pri = '3'
+       and evt_nam = 'USR-INVENTORY-DETAILS-REPORT'
+       and src_sys = @src_sys
+}
+else
+{
+    [select *
+       from poldat_view
+      where polcod = 'EMS'
+        and polvar = 'EVENTS'
+        and polval = 'USR-INVENTORY-DETAILS-REPORT'
+        and wh_id = nvl(@wh_id, @@wh_id)
+        and rtnum1 = 1] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        expand environment variable
+         where variable = '$LESDIR'
+        |
+        [select replace(@value, 'les', 'LES') || '\files\emsout\' filepath
+           from dual]
+        |
+        {
+            publish data
+             where wh_id = nvl(@wh_id, @@wh_id)
+            |
+            [select distinct '#' || s.prtnum Item,
+                    prtdsc.lngdsc Item_Description,
+                    p.prtfam Item_Family,
+                    pv.ftpcod Item_Footprint,
+                    sum(s.untqty) Total_Quantity,
+                    sum(s.comqty) Commited_Quantity
+               from invsum s
+               join locmst l
+                 on l.stoloc = s.stoloc
+               join loc_typ
+                 on l.loc_typ_id = loc_typ.loc_typ_id
+                and loc_typ.fwiflg = '1'
+               join prtmst p
+                 on s.prtnum = p.prtnum
+                and s.wh_id = p.wh_id_tmpl
+               join prtftp_view pv
+                 on pv.prtnum = p.prtnum
+                and pv.wh_id = p.wh_id_tmpl
+               join prtdsc
+                 on p.prtnum || '|' || p.prt_client_id || '|' || p.wh_id_tmpl = prtdsc.colval
+                and prtdsc.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+                and prtdsc.locale_id = 'US_ENGLISH'
+              where s.wh_id = @wh_id
+              group by s.prtnum,
+                    prtdsc.lngdsc,
+                    p.prtfam,
+                    pv.ftpcod]
+        } >> res1
+        |
+        if (rowcount(@res1) > 0)
+        {
+            [select to_char(sysdate, 'MMDDYYYYHH24MISS') fildte
+               from dual]
+            |
+            [select 'Item_' || @fildte || '.csv' filnam1
+               from dual]
+            |
+            write csv file
+             where resdata = @res1
+               and filnam = @filnam1
+               and path = @filepath
+            |
+            publish data
+             where filnam1 = @filnam
+        }
+        |
+        {
+            publish data
+             where wh_id = nvl(@wh_id, @@wh_id)
+            |
+            [SELECT iv.stoloc Location,
+                    l.locsts Location_Status,
+                    '#' || iv.prtnum Item,
+                    sum(s.comqty) Commited_Quantity,
+                    sum(iv.untqty) Total_Quantity,
+                    count(distinct (iv.lodnum)) LPN_count
+               from inventory_view iv
+               join prtmst p
+                 on iv.prtnum = p.prtnum
+                and iv.wh_id = p.wh_id_tmpl
+               join locmst l
+                 on iv.stoloc = l.stoloc
+               join loc_typ
+                 on loc_typ.loc_typ_id = l.loc_typ_id
+                and loc_typ.fwiflg = '1'
+               join invsum s
+                 on s.stoloc = iv.stoloc
+                and s.prtnum = iv.prtnum
+               join prtdsc
+                 on p.prtnum || '|' || p.prt_client_id || '|' || p.wh_id_tmpl = prtdsc.colval
+                and prtdsc.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+                and prtdsc.locale_id = 'US_ENGLISH'
+              where iv.wh_id = @wh_id
+              group by iv.stoloc,
+                    l.locsts,
+                    iv.prtnum,
+                    prtdsc.lngdsc]
+        } >> res2
+        |
+        if (rowcount(@res2) > 0)
+        {
+            [select to_char(sysdate, 'MMDDYYYYHH24MISS') fildte
+               from dual]
+            |
+            [select 'Location-' || @fildte || '.csv' filnam2
+               from dual]
+            |
+            write csv file
+             where resdata = @res2
+               and filnam = @filnam2
+               and path = @filepath
+            |
+            publish data
+             where filnam2 = @filnam
+        }
+        |
+        {
+            publish data
+             where wh_id = nvl(@wh_id, @@wh_id)
+            |
+            [SELECT '#' || iv.lodnum LPN,
+                    iv.stoloc Location,
+                    iv.invsts Inventory_status,
+                    '#' || iv.prtnum Item,
+                    pv.ftpcod Item_Footprint,
+                    iv.hld_flg Hold,
+                    sum(iv.untqty) Total_Quantity,
+                    iv.lotnum Lotnum,
+                    iv.asset_typ Handling_unit,
+                    iv.age_pflnam Ageing_profile,
+                    CONVERT(nvarchar(19), iv.fifdte, 121) Fifo_dte,
+                    CONVERT(nvarchar(19), iv.mandte, 121) Manufacture_date,
+                    CONVERT(nvarchar(19), iv.expire_dte, 121) Expiry_date,
+                    prtdsc.lngdsc Item_Description
+               from inventory_view iv
+               join invsum s
+                 on s.stoloc = iv.stoloc
+                and s.prtnum = iv.prtnum
+               join locmst l
+                 on iv.stoloc = l.stoloc
+               join loc_typ
+                 on loc_typ.loc_typ_id = l.loc_typ_id
+                and loc_typ.fwiflg = '1'
+               join prtmst p
+                 on iv.prtnum = p.prtnum
+                and iv.wh_id = p.wh_id_tmpl
+               join prtftp_view pv
+                 on pv.prtnum = p.prtnum
+                and pv.wh_id = p.wh_id_tmpl
+               join prtdsc
+                 on p.prtnum || '|' || p.prt_client_id || '|' || p.wh_id_tmpl = prtdsc.colval
+                and prtdsc.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+                and prtdsc.locale_id = 'US_ENGLISH'
+              where iv.wh_id = @wh_id
+              group by iv.stoloc,
+                    iv.lodnum,
+                    iv.prtnum,
+                    iv.age_pflnam,
+                    iv.fifdte,
+                    iv.mandte,
+                    iv.expire_dte,
+                    iv.asset_typ,
+                    iv.hld_flg,
+                    iv.lotnum,
+                    pv.ftpcod,
+                    iv.invsts,
+                    prtdsc.lngdsc]
+        } >> res3
+        |
+        if (rowcount(@res3) > 0)
+        {
+            [select to_char(sysdate, 'MMDDYYYYHH24MISS') fildte
+               from dual]
+            |
+            [select 'LPN_' || @fildte || '.csv' filnam3
+               from dual]
+            |
+            write csv file
+             where resdata = @res3
+               and filnam = @filnam3
+               and path = @filepath
+            |
+            publish data
+             where filnam3 = @filnam3
+        }
+        |
+        get server information
+        |
+        list warehouses
+         where wh_id [not in ('WMD1' ,'----' )]
+        |
+        log ems event
+         where evt_nam = 'USR-INVENTORY-DETAILS-REPORT'
+           and src_sys = @src_sys
+           and in_trans = 0
+           and locale_id = 'US_ENGLISH'
+           and att_app_srv = @url
+           and wh_id = nvl(@wh_id, @@wh_id)
+           and lngdsc = @lngdsc
+           and att_file = @filnam1 || ';' || @filnam2 || ';' || @filnam3
+           and att_path = @filepath || @filnam1 || ';' || @filepath || @filnam2 || ';' || @filepath || @filnam3
+    }
+}
+]]> 
+</local-syntax> 
+</command>

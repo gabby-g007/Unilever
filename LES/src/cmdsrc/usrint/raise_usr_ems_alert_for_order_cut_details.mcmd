@@ -1,0 +1,120 @@
+<command>
+  
+ <name>raise usr ems alert for order cut details</name>
+  
+ <description>Raise EMS Event For Order Cut Details</description>
+  
+ <type>Local Syntax</type>
+  
+ <local-syntax>
+
+<![CDATA[
+list warehouses
+ where wh_id [not in ('WMD1' ,'----' )]
+|
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    /* We must prime the event definition */
+    publish data
+     where evt_msg = "Attached is the list of Order Cut Detail Report. Please check"
+       and evt_subj = "ORDER CUT DETAIL-@lngdsc - @wh_id"
+       and evt_qual = "wh_id"
+       and evt_grp = 'Shipping'
+       and evt_pri = '3'
+       and evt_nam = 'USR-ORDER-CUT-DETAIL'
+       and src_sys = @src_sys
+}
+else
+{
+    [select rtnum2
+       from poldat_view
+      where polcod = 'EMS'
+        and polvar = 'EVENTS'
+        and polval = 'USR-ORDER-CUT-DETAIL'
+        and wh_id = nvl(@wh_id, @@wh_id)
+        and rtnum1 = 1] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        {
+            publish data
+             where system_date = to_char(sysdate - @rtnum2, 'YYYYMMDD')
+               and from_date = @system_date || '000000'
+               and to_date = @system_date || '235959'
+            |
+            list usr shipments cut
+             where from_date = @from_date
+               and to_Date = @to_Date
+            |
+            [select adrnam
+               from adrmst
+              where adr_id in (select adr_id
+                                 from cstmst
+                                where cstmst.cstnum in (select stcust
+                                                          from ord
+                                                         where ordnum = @ordnum))] catch(@?)
+            |
+            publish data
+             where Warehouse = nvl(@wh_id, @@wh_id)
+               and Customer_PO_Number = @cponum
+               and Appt_EndDate = to_char(@end_dte, 'YYYY-MM-DD:HH:MM:SS')
+               and Item_number = @prtnum
+               and Description = @lngdsc
+               and Order_Number = to_char(@ordnum)
+               and Carrier = @carcod
+               and Carrier_Name = @carnam
+               and Carrier_Move_ID = @car_move_id
+               and Loaded_Date = to_char(@loddte, 'YYYY-MM-DD:HH:MM:SS')
+               and Address_Name = @adrnam
+               and cutqty = @cutqty
+               and Cut_Reason = @vc_reacod
+               and Dispatch_Date = to_char(@dispatch_dte, 'YYYY-MM-DD:HH:MM:SS')
+               and Appt_startdate = to_char(@start_dte, 'YYYY-MM-DD:HH:MM:SS')
+               and comments = @comments
+        } >> res
+        |
+        if (rowcount(@res) > 0)
+        {
+            [select to_char(sysdate, 'YYYYMMDD') fildte
+               from dual]
+            |
+            expand environment variable
+             where variable = '$LESDIR'
+            |
+            [select 'OrdCutDtl_' || nvl(@wh_id, @@wh_id) || '-' || @fildte || '.csv' filnam,
+                    replace(@value, 'les', 'LES') || '\files\emsout\' filepath
+               from dual]
+            |
+            write csv file
+             where resdata = @res
+               and filnam = @filnam
+               and path = @filepath
+			|
+            go to sleep
+            where sleeptime = 2
+            |
+            get server information
+            |
+            list warehouses
+             where wh_id [not in ('WMD1' ,'----' )]
+            |
+            log ems event
+             where evt_nam = 'USR-ORDER-CUT-DETAIL'
+               and src_sys = @src_sys
+               and in_trans = 0
+               and locale_id = 'US_ENGLISH'
+               and att_app_srv = @url
+               and wh_id = nvl(@wh_id, @@wh_id)
+               and lngdsc = @lngdsc
+               and att_file = @filnam
+               and att_path = @filepath || @filnam
+        }
+    }
+}
+]]>
+
+</local-syntax>
+
+</command>

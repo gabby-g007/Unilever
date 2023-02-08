@@ -1,0 +1,81 @@
+<command>
+<name>list usr shipped history</name>
+<description>List USR Shipped History</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'ship_struct_view.dispatch_dte')
+|
+[/*#limit=@offset,@limit,true*/
+ select ship_struct_view.car_move_id,
+        ship_struct_view.ship_id,
+        shipping_pckwrk_view.prtnum,
+        prtdsc.lngdsc,
+        shipping_pckwrk_view.stcust,
+        adrmst.adrnam,
+        adrmst.adrcty,
+        adrmst.adrstc,
+        ship_struct_view.dispatch_dte,
+        sum(shipping_pckwrk_view.dtl_appqty) qty,
+        '' as 'D'
+   from ship_struct_view
+   join shipping_pckwrk_view
+     on ship_struct_view.ship_id = shipping_pckwrk_view.ship_id
+    and ship_struct_view.wh_id = shipping_pckwrk_view.wh_id
+    and ship_struct_view.car_move_id = shipping_pckwrk_view.car_move_id
+   join adrmst
+     on adrmst.adr_id = shipping_pckwrk_view.st_adr_id
+   join cstmst
+     on cstmst.adr_id = adrmst.adr_id
+    and shipping_pckwrk_view.stcust = cstmst.cstnum
+   join prtmst_view
+     on shipping_pckwrk_view.prtnum = prtmst_view.prtnum
+    and shipping_pckwrk_view.prt_client_id = prtmst_view.prt_client_id
+    and shipping_pckwrk_view.wh_id = prtmst_view.wh_id
+   join prtdsc
+     on prtdsc.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+    and prtdsc.colval = /*=varchar(*/ prtmst_view.prtnum || '|' || prtmst_view.prt_client_id || '|' || prtmst_view.wh_id /*=)*/
+    and prtdsc.locale_id = nvl(@locale_id, @@locale_id)
+  where ship_struct_view.dispatch_dte is not null
+    and @+ship_struct_view.dispatch_dte:date
+    and @+ship_struct_view.wh_id
+    and @filterByClause:raw
+    and @*
+  group by ship_struct_view.car_move_id,
+        ship_struct_view.ship_id,
+        shipping_pckwrk_view.prtnum,
+        prtdsc.lngdsc,
+        shipping_pckwrk_view.stcust,
+        adrmst.adrnam,
+        adrmst.adrcty,
+        adrmst.adrstc,
+        ship_struct_view.dispatch_dte
+  order by @sortOrderClause:raw]
+                   
+
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list the shipped inventory history.
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

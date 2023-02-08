@@ -1,0 +1,55 @@
+#use $DCSDIR/include
+#use $LESDIR/db/ddl/Docs
+#use $LESDIR/include
+#use $MOCADIR/include
+#include <dcsddl.h>
+#include <dcscolwid.h>
+#include <dcstbldef.h>
+#include <sqlDataTypes.h>
+
+mset command on
+[
+
+CREATE_TABLE(uc_inv_sts_hld_info)
+(
+     uc_batch_evt_key NVARCHAR(10) not null,
+     evt_id NVARCHAR(30) not null,
+     wh_id NVARCHAR(32) not null,
+     bldg_id NVARCHAR(10) not null,
+     arecod NVARCHAR(10) not null,
+     stoloc NVARCHAR(20) not null,
+     lodnum NVARCHAR(30) not null,
+     subnum NVARCHAR(30) not null,
+     dtlnum NVARCHAR(30) not null,
+     prtnum NVARCHAR(50) not null,
+     prt_client_id NVARCHAR(32) default '----' not null,
+     orgcod NVARCHAR(25) default '----' not null,
+     revlvl NVARCHAR(25) default '----' not null,
+     lotnum NVARCHAR(25) default '----' not null,
+     sup_lotnum NVARCHAR(25),
+     supnum NVARCHAR(32),
+     fr_invsts NVARCHAR(4),
+     to_invsts NVARCHAR(4),
+     result_of_hold INTEGER default 0 not null,
+     trnqty INTEGER not null,
+     fr_hld_flg INTEGER default 0 not null,
+     to_hld_flg INTEGER default 0 not null,
+     acttyp NVARCHAR(4),
+     hld_flg INTEGER default 0 not null,
+     hldpfx NVARCHAR(32),
+     hldnum NVARCHAR(10),
+     mandte DATETIME,
+     expire_dte DATETIME,
+     trans_wh_id NVARCHAR(32) not null,
+     reacod NVARCHAR(20),
+     send_to_host INTEGER default 0 not null,
+     ins_usr_id NVARCHAR(40),
+     ins_dt DATETIME,
+     sent_to_host INTEGER default 0 not null,
+     sent_date DATETIME
+)
+] catch (ERR_TABLE_ALREADY_EXISTS)
+RUN_DDL
+mset command off
+
+#include <uc_inv_sts_hld_info.tdoc>

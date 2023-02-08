@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+PURGE-UL-RFMESSAGES,,Purging UL RF old messages,1,timer,"[select * from MTFMSG_DELV where insdte < DATEADD(HOUR, -4, GETDATE()) and rcvflg = 1 order by moddte desc]|[delete from MTFMSG_DELV where msg_id = @msg_id and mod_usr_id = @mod_usr_id and wh_id = @wh_id]|[delete from mtfmsg where msg_id = @msg_id and mod_usr_id = @mod_usr_id];",$LESDIR/log/purge_rf_msg.log,,0,,,3600,dcs_data

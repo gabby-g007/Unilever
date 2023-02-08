@@ -1,0 +1,224 @@
+<command>
+  <name>list usr cluster pick job</name>
+  <description>list usr cluster pick job</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+[select count(*) cnt0
+   from poldat
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'CLUSTER-PICK'
+    and polval = 'ENABLE'
+    and rtnum1 = 1]
+|
+if (@cnt0 = 1)
+{
+    [select rtstr1
+       from poldat
+      where polcod = 'USR-UNILEVER'
+        and polvar = 'CLUSTER-PICK'
+        and polval = 'EXCLUDE-CUST'
+        and rtnum1 = 1] catch(@?) >> cust
+    |
+    convert column results to string
+     where colnam = 'rtstr1'
+       and res = @cust
+       and separator = ','
+    |
+    [select count(*) / 2 + 2 cnt
+       from pcklst
+      where adddte > sysdate -0.002
+        and list_sts not in ('C')
+        and (length(asset_typ) = 4 or asset_typ is null)]
+    |
+    do loop
+     where count = @cnt
+    |
+    [select asset_typ parent_asset_typ,
+            pcklst_rule_id parent_rule_id,
+            substr(asset_typ, 2, 4) child_asset_typ
+       from pcklst_rule
+      where asset_typ is not null]
+    |
+    [select decode(rtstr1, null, '', 'and pckwrk_view.srcare in (''' || replace(rtstr1, ',', ''',''') || ''')') src_pck_area,
+            decode(rtstr1, null, '', 'and pckwrk_view.srcare in (''' || replace(rtstr1, ',', ''',''') || ''')') src_loc_area,
+            decode(rtstr2, null, '', 'and mov_zone.mov_zone_cod in (''' || replace(rtstr2, ',', ''',''') || ''')') dst_pck_area,
+            decode(@result_string, null, '', 'and (pckwrk_view.stcust not in (''' || replace(@result_string, ',', ''',''') || ''') or pckwrk_view.stcust is null )') exclude_stcust,
+            decode(@result_string, null, '', 'and (pckwrk_view.rtcust not in (''' || replace(@result_string, ',', ''',''') || ''') or pckwrk_view.rtcust is null )') exclude_rtcust,
+            decode(@child_asset_typ, 'CHEP', 'or pckwrk_view.asset_typ is null', ' ') child_asset_null,
+            decode(@child_asset_typ, 'CHEP', 'or pcklst.asset_typ is null', ' ') child_asset_null1
+       from poldat
+      where polcod = 'USR-UNILEVER'
+        and polvar = 'CLUSTER-PICK'
+        and polval = 'SRC-DST'
+        and rtnum1 = 1] catch(@?)
+    /*|
+       publish data
+       where parent_child_rule_id = 'and pcklst.pcklst_rule_id not in (''84'',''85'',''86'',''87'')'
+       and src_pck_area = 'and pckwrk_view.srcare in (''AEROPF01'')'
+       and src_loc_area = 'and locmst.arecod in (''AEROPF01'')'
+       and dst_pck_area = 'and pckwrk_view.dstare in (''SHPLTLS001'')' */
+    |
+    if (@? = 0)
+    {
+        [select top 2 *
+           from (select pckwrk_view.list_id,
+                        pckwrk_view.srcare,
+                        pckwrk_view.ship_id,
+                        appt.start_dte,
+                        ROW_NUMBER() OVER(PARTITION BY pckwrk_view.list_id
+                                           ORDER BY appt.start_dte,
+                                                 pckwrk_view.srcare,
+                                                 pckwrk_view.ship_id,
+                                                 pckwrk_view.list_id DESC) as rn
+                   from pckwrk_view
+                   join pcklst
+                     on pckwrk_view.list_id = pcklst.list_id
+                    and (pcklst.asset_typ = @child_asset_typ @child_asset_null1:raw or (pcklst.asset_typ = @parent_asset_typ and 1 = (select count(distinct asset_slot)
+                                                                                                                                        from pckwrk_view p2
+                                                                                                                                       where p2.list_id = pckwrk_view.list_id
+                                                                                                                                         and p2.asset_slot in ('A', 'B'))))
+                   join mov_zone
+                     on pckwrk_view.dst_mov_zone_id = mov_zone.mov_zone_id
+                    and pckwrk_view.wh_id = mov_zone.wh_id
+                   left outer
+                   join shipment
+                     on shipment.ship_id = pckwrk_view.ship_id
+                   left outer
+                   join stop
+                     on shipment.stop_id = stop.stop_id
+                   left outer
+                   join car_move
+                     on stop.car_move_id = car_move.car_move_id
+                   left
+                   join appt
+                     on car_move.car_move_id = appt.car_move_id
+                  where pckwrk_view.list_id is not null
+                    and pckwrk_view.pcksts = 'R'
+                    and pcklst.list_sts <> 'C'
+                    and pckwrk_view.appqty = 0
+                    and pckwrk_view.wrktyp = 'P'
+                    and (pckwrk_view.asset_typ = @child_asset_typ @child_asset_null:raw) @dst_pck_area:raw @src_pck_area:raw @parent_child_rule_id:raw @exclude_stcust:raw @exclude_rtcust:raw
+                    and not exists(select *
+                                     from pckwrk_view p1
+                                    where p1.list_id = pckwrk_view.list_id
+                                      and (p1.appqty > 0 or p1.ackdevcod is not null))
+                    and not exists(select *
+                                     from wrkque
+                                    where wrkque.list_id = pckwrk_view.list_id
+                                      and (wrkque.wrksts in ('WAIT', 'ACK') or wrkque.ackdevcod is not null))) a
+          where a.rn = 1
+          order by a.start_dte,
+                a.srcare,
+                a.ship_id,
+                a.list_id] catch(@?) >> r1
+        |
+        if (@? = 0)
+        {
+            convert column to multicolumn
+             where res = @r1
+               and column = 'list_id'
+               and count = 2
+            |
+            [update pckwrk_hdr
+                set asset_slot = 'A'
+              where list_id = @list_id_0
+                and (asset_slot is null or asset_slot = '' or asset_slot = ' ')] catch(@?)
+            |
+            if (@list_id_1 is not null)
+            {
+                [delete wrkque
+                  where list_id in (@list_id_0, @list_id_1)
+                    and oprcod <> 'CPCK'] catch(@?)
+                |
+                [update pckwrk_hdr
+                    set asset_slot = 'B',
+                        list_id = @list_id_0
+                  where list_id = @list_id_1] catch(@?)
+                |
+                [select count(distinct prtnum) tot_item1
+                   from pckwrk_view
+                  where list_id = @list_id_0] catch(@?)
+                |
+                [update pcklst
+                    set tot_slot = 2,
+                        pcklst_rule_id = @parent_rule_id,
+                        tot_item = @tot_item1,
+                        list_sts = 'P',
+                        asset_typ = @parent_asset_typ
+                  where list_id = @list_id_0
+                 /*    and pcklst_rule_id <> @parent_rule_id
+                    and (asset_typ <> @parent_asset_typ or asset_typ is null) */] catch(@?)
+                |
+                if (@? = 0)
+                {
+                    [update pcklst
+                        set ins_user_id = @list_id_0
+                      where list_id = @list_id_1] catch(@?)
+                    |
+                    save session variable
+                     where name = 'seq'
+                       and value = -1
+                    |
+                    [select locmst.stoloc,
+                            locmst.trvseq,
+                            pckwrk_view.wrkref
+                       from locmst,
+                            pckwrk_view
+                      where pckwrk_view.wh_id = locmst.wh_id
+                        and pckwrk_view.srcloc = locmst.stoloc
+                        and pckwrk_view.list_id = @list_id_0 @src_loc_area:raw
+                      order by locmst.trvseq]
+                    |
+                    get session variable
+                     where name = 'seq'
+                    |
+                    save session variable
+                     where name = 'seq'
+                       and value = @value + 1
+                    |
+                    [update pckwrk_hdr
+                        set list_seqnum = @value,
+                            asset_typ = @child_asset_typ
+                      where wrkref = @wrkref
+                        and srcloc = @stoloc]
+                }
+            }
+            else
+            {
+                [update pckwrk_hdr
+                    set asset_typ = @child_asset_typ
+                  where list_id = @list_id_0] catch(@?)
+                |
+                [update pcklst
+                    set pcklst_rule_id = @parent_rule_id,
+                        list_sts = 'P',
+                        asset_typ = @parent_asset_typ
+                  where list_id = @list_id_0
+                    and pcklst_rule_id <> @parent_rule_id
+                    and (asset_typ <> @parent_asset_typ or asset_typ is null)] catch(@?)
+                |
+                [delete wrkque
+                  where list_id = @list_id_0
+                    and oprcod <> 'CPCK'] catch(@?)
+                |
+                [delete wrkque
+                  where oprcod in ('CPCK', 'LPCK')
+                    and wrksts in ('PEND', 'SUSP')
+                    and ack_usr_id is null
+                    and list_id is not null
+                    and reqnum not in (select max(reqnum)
+                                         from wrkque w
+                                        where w.oprcod = 'CPCK'
+                                          and w.ack_usr_id is null
+                                          and w.list_id is not null
+                                          and w.list_id = wrkque.list_id)] catch(@?)
+            }
+        }
+        |
+        commit
+    }
+}
+]]>
+</local-syntax>
+</command>

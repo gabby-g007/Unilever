@@ -1,0 +1,76 @@
+<command>
+  <name>list usr order line pending for claw</name>
+  <description>listusrorderlinependingforclaw</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and sortOrderClause = nvl(@sortOrderClause, 'temp.prtnum')
+   and wh_id = nvl(@wh_id, @@wh_id)
+|
+[/*#limit=@offset,@limit,true*/
+ select temp.prtnum,
+        temp.lngdsc,
+        temp.prtfam,
+        temp.pickface,
+        temp.ordered,
+        temp.caslvl,
+        temp.untpal,
+        temp.grswgt,
+        temp.pallets,
+        temp.layers,
+        temp.lyrcases,
+        temp.cases
+   from (select ord_line.prtnum,
+                prtdsc.lngdsc,
+                prtmst_view.prtfam,
+                rplcfg.stoloc pickface,
+                sum(shipment_line.pckqty) ordered,
+                prtftp_view.caslvl,
+                prtftp_view.untpal,
+                prtftp_view.grswgt,
+                sum(trunc(shipment_line.pckqty / prtftp_view.untpal)) pallets,
+                sum(trunc(mod(shipment_line.pckqty, prtftp_view.untpal) / prtftp_view.caslvl)) layers,
+                sum((mod(shipment_line.pckqty, prtftp_view.untpal)) - (mod(mod(shipment_line.pckqty, prtftp_view.untpal), prtftp_view.caslvl))) lyrcases,
+                sum(mod(mod(shipment_line.pckqty, prtftp_view.untpal), prtftp_view.caslvl)) cases
+           from shipment_line
+           join ord_line
+             on shipment_line.ordnum = ord_line.ordnum
+            and shipment_line.ordlin = ord_line.ordlin
+            and shipment_line.ordsln = ord_line.ordsln
+            and shipment_line.prtnum = ord_line.prtnum
+            and shipment_line.wh_id = ord_line.wh_id
+           join shipment
+             on shipment.ship_id = shipment_line.ship_id
+           join prtdsc
+             on prtdsc.colval = ord_line.prtnum || '|' || ord_line.prt_client_id || '|' || ord_line.wh_id
+           join prtmst_view
+             on ord_line.prtnum = prtmst_view.prtnum
+            and ord_line.prt_client_id = prtmst_view.prt_client_id
+            and ord_line.wh_id = prtmst_view.wh_id_tmpl
+           join prtftp_view
+             on ord_line.prtnum = prtftp_view.prtnum
+            and prtftp_view.wh_id = prtmst_view.wh_id
+            and prtftp_view.prt_client_id = prtmst_view.prt_client_id
+           left
+           join rplcfg
+             on ord_line.prtnum = rplcfg.prtnum
+            and rplcfg.prt_client_id = prtmst_view.prt_client_id
+          where shipment_line.linsts in ('P')
+            and prtmst_view.wh_id_tmpl = nvl(@wh_id, @@wh_id)
+          group by ord_line.prtnum,
+                prtdsc.lngdsc,
+                prtmst_view.prtfam,
+                rplcfg.stoloc,
+                prtftp_view.caslvl,
+                prtftp_view.untpal,
+                prtftp_view.grswgt) temp
+  where @filterByClause:raw
+  order by @sortOrderClause:raw]
+
+]]>
+   </local-syntax>
+</command>

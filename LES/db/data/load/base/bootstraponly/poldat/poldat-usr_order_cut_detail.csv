@@ -1,0 +1,2 @@
+polcod,polvar,polval,wh_id_tmpl,srtseq,rtstr1,rtstr2,rtnum1,rtnum2,rtflt1,rtflt2,moddte,mod_usr_id,grp_nam
+EMS,EVENTS,USR-ORDER-CUT-DETAIL,----,0,raise usr ems alert for order cut details,<rtnum2 = no of days to consider for report>,1,30,0,0,2/23/2021 3:04:17 PM,NOUSER,usr_data

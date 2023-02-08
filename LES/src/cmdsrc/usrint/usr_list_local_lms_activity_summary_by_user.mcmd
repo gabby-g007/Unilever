@@ -1,0 +1,60 @@
+<command>
+  <name>usr list local lms activity summary by user</name>
+  <description>Usr List Local LMS Activity Summary By User</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+[select l.actcod,
+        nvl(d.lngdsc, l.actcod) actdsc,
+        sum(l.palqty) palqty,
+        sum(l.casqty) casqty,
+        count(l.lmsasn) lmscnt,
+        l.usr_id,
+        l.lmswrk,
+        s.mc_supervisor_id
+   from lmstrn l
+ 
+   left outer
+   join dscmst d
+     on l.actcod = d.colval
+  inner
+   join les_usr_ath s
+     on l.usr_id = s.usr_id  
+
+  where d.colnam = 'actcod'
+    and l.begdte >= @begdte:date
+    and l.enddte <= @enddte:date
+    and nvl(d.colnam, 'actcod') = 'actcod'
+    and nvl(d.locale_id, nvl(@locale_id, @@locale_id)) = nvl(@locale_id, @@locale_id)
+    and @%l.usr_id
+    and @+s.mc_supervisor_id
+  and @+l.wh_id
+    and l.actcod NOT IN ('ISTARTUP', 'ISTOP')
+    and (l.lmstyp = 'O'
+         /* OBTAINs only (Ignore the PLACE)  */
+         or (l.lmstyp = 'P'
+             /* unless there is only a PLACE for */
+             and not exists
+             /* this transaction.                */
+             (select 1
+                from lmstrn l2
+               where l2.lmstyp = 'O'
+                 and l2.lmsasn = l.lmsasn)))
+    and @*
+  group by l.usr_id,
+        l.lmswrk,
+        l.actcod,
+        d.lngdsc,
+        s.mc_supervisor_id
+  order by l.usr_id,
+        l.lmswrk,
+        l.actcod,
+        d.lngdsc,
+        s.mc_supervisor_id]
+]]>
+</local-syntax>
+  <documentation>
+<remarks></remarks>
+
+</documentation>
+</command>

@@ -1,0 +1,62 @@
+<command>
+  <name>validate asset for picked inventory</name>
+  <description>validate asset for picked inventory</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+[select *
+   from poldat
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'ASSET-VALIDATION'
+    and polval = 'ENABLED'
+    and rtnum1 = 1] catch(@?)
+|
+if (@? = 0)
+{
+    [select 'x'
+       from inventory_view inv,
+            shipment_line sl,
+            ord o
+      where inv.lodnum = @lodnum
+        and inv.ship_line_id = sl.ship_line_id
+        and sl.ordnum = o.ordnum
+        and (o.stcust in (select rtstr1
+                            from poldat
+                           where polcod = 'USR-UNILEVER'
+                             and polvar = 'ASSET-VALIDATION'
+                             and polval = 'VALIDATE-CUSTOMER'
+                             and rtnum1 = 1
+                             and rtstr2 = inv.asset_typ) or o.stcust in (select rtstr1
+                                                                           from poldat
+                                                                          where polcod = 'USR-UNILEVER'
+                                                                            and polvar = 'ASSET-VALIDATION'
+                                                                            and polval = 'CUSTOMER-ID'
+                                                                            and rtnum1 = 1))] catch(@?)
+    |
+    if (@? = 0)
+    {
+        ^validate asset for picked inventory
+    }
+    else
+    {
+        [select il.asset_typ asset_typ
+           from invlod il
+          where il.lodnum = @lodnum] catch(@?)
+        |
+        if (@asset_typ = '')
+        {
+            ^validate asset for picked inventory
+        }
+        else
+        {
+            sl_do nothing
+        }
+    }
+}
+else
+{
+    ^validate asset for picked inventory
+}
+]]>
+</local-syntax>
+</command>

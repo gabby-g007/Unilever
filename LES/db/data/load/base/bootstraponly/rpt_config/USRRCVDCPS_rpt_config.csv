@@ -1,0 +1,2 @@
+rpt_id,prod_id,rpt_layout_file,def_printer,rpt_typ,keep_days,ena_ems_flg,dig_sig_req_flg,ems_evt_nam,func_area,grp_nam
+"USRRCVDCPS","LES","Usr_JDA_Enroute.jrxml","","JR",14,0,0,"UC-WH-RCV-DISCREPANCY","RECEIVING","usr_enroute_report"

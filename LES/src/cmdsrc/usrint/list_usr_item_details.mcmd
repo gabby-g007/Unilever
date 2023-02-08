@@ -1,0 +1,51 @@
+<command>
+  <name>list usr item details</name>
+  <description>list usr item details</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and sortOrderClause = nvl(@sortOrderClause, 'prtmst_view.prtnum')
+|
+[/*#limit=@offset,@limit,true*/
+ select prtmst_view.wh_id_tmpl,
+        prtmst_view.prtnum,
+        prtmst_view.prtfam,
+		prtmst_view.prt_client_id,
+        prtdsc.lngdsc,
+        prtmst_view.hazmat_flg,
+        prtmst_view.prtsize,
+        prtmst_view.stkuom,
+        prtmst_view.dspuom,
+        prtmst_view.dept_cod,
+        prtmst_view.prtstyle,
+        prtmst_view.prtfit,
+        prtmst_view.ins_dt,
+        prtmst_view.fifwin,
+        prtmst_view.abs_ordinv_win,
+        prtmst_view.mod_usr_id,
+        prtmst_view.last_upd_dt,
+        prtmst_view.last_upd_user_id,
+        prtmst_view.rcvsts,
+        prtmst_view.lot_fmt_id,
+        prtmst_view.untcst,
+        prtmst_view.crncy_code,
+        prtmst_view.age_pflnam,
+        prtmst_view.abccod,
+        prtmst_view.rcvflg,
+        prtmst_view.dte_win_typ
+   from prtmst_view
+   join prtdsc
+     on prtmst_view.prtnum || '|' || prtmst_view.prt_client_id || '|' || prtmst_view.wh_id_tmpl = prtdsc.colval
+    and prtdsc.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+    and prtdsc.locale_id = nvl(@locale_id,@@locale_id)
+	and wh_id_tmpl = nvl(@wh_id, @@wh_id)
+  where @filterByClause:raw
+  order by @sortOrderClause:raw] catch (-1403,510)
+  
+]]>
+</local-syntax>
+</command>

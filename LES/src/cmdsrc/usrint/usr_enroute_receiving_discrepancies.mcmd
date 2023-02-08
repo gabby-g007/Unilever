@@ -1,0 +1,234 @@
+<command>
+  <name>usr enroute receiving discrepancies</name>
+  <description>usr enroute receiving discrepancies</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+if (@wh_id != '<><>')
+{
+    publish data
+     where filterByClause = nvl(@filterByClause,
+                                [1 = 1])
+    |
+    if (@filterByClause like '%discrepancy%')
+    {
+        publish data
+         where filterByClause_1 = substr(@filterByClause, 0, instr(@filterByClause, 'AND (discrepancy') -1)
+           and filterByClause_2 = substr(@filterByClause, instr(@filterByClause, 'discrepancy') -1, length(@filterByClause))
+           and discrepancy = decode(@filterByClause_2,'(discrepancy = 1)',1,'(discrepancy is not null)',1,0)
+    }
+    else if (@filterByClause like '%authorizationsClause%')
+    {
+        publish data
+         where filterByClause_1 = nvl(substr(@filterByClause, 0, instr(@filterByClause, "'and authorizationsClause = ") -1),
+                                      [1 = 1])
+    }
+    else
+    {
+        publish data
+         where filterByClause_1 = nvl(@filterByClause,
+                                      [1 = 1])
+    }
+    |
+    if (@filterByClause_1 is not null or @trknum is not null or @supnum is not null)
+    {
+        [select rl.trknum,
+                rl.supnum,
+                rl.wh_id,
+                sum(rl.expqty) expqty,
+                sum(iv.untqty) untqty
+           from rcvtrk rt
+           join rcvlin rl
+             on rt.trknum = rl.trknum
+           left outer
+           join inventory_view iv
+             on iv.rcvkey = rl.rcvkey
+          where @filterByClause_1:raw
+            and @+rl.trknum
+            and @+rl.supnum
+            and rt.rcvtrk_stat = 'C'
+          group by rl.trknum,
+                rl.supnum,
+                rl.wh_id
+          order by sum(rl.expqty) desc] catch(@?)
+        |
+        if (@? != -1403)
+        {
+            [select string_agg(dlytrn.actcod, ',') within group(order by dlytrn.actcod) actcod,
+                    uc_exp_rcpt_inventory.lodnum
+               From dlytrn,
+                    uc_exp_rcpt_inventory,
+                    rf_term_mst
+              where dlytrn.lodnum = uc_exp_rcpt_inventory.lodnum
+                and dlytrn.frstol = uc_exp_rcpt_inventory.trknum
+                and dlytrn.tostol = rf_term_mst.devcod
+                and dlytrn.frstol = @trknum
+              group by uc_exp_rcpt_inventory.lodnum] catch(@?)
+            |
+            if (@actcod like ('%RCV%'))
+            {
+                [select dlytrn.prtnum act_prtnum,
+                        sum(dlytrn.trnqty) act_qty,
+                        dlytrn.lodnum act_load,
+                        dlytrn.lotnum act_lot,
+                        uc_exp_rcpt_inventory.wh_id wh_id,
+                        uc_exp_rcpt_inventory.prtnum exp_prtnum,
+                        uc_exp_rcpt_inventory.trnqty exp_qty,
+                        uc_exp_rcpt_inventory.lodnum exp_load,
+                        uc_exp_rcpt_inventory.lotnum exp_lot,
+                        uc_exp_rcpt_inventory.supnum,
+                        uc_exp_rcpt_inventory.trknum
+                   From dlytrn
+                   join rf_term_mst
+                     on dlytrn.tostol = rf_term_mst.devcod
+                   join uc_exp_rcpt_inventory
+                     on dlytrn.lodnum = uc_exp_rcpt_inventory.lodnum
+                    and dlytrn.frstol = uc_exp_rcpt_inventory.trknum
+                    and dlytrn.actcod = 'RCV'
+                    and uc_exp_rcpt_inventory.trknum = @trknum
+                    and uc_exp_rcpt_inventory.lodnum = @lodnum
+                  group by dlytrn.prtnum,
+                        dlytrn.lodnum,
+                        dlytrn.lotnum,
+                        uc_exp_rcpt_inventory.wh_id,
+                        uc_exp_rcpt_inventory.prtnum,
+                        uc_exp_rcpt_inventory.trnqty,
+                        uc_exp_rcpt_inventory.lodnum,
+                        uc_exp_rcpt_inventory.lotnum,
+                        uc_exp_rcpt_inventory.supnum,
+                        uc_exp_rcpt_inventory.trknum] catch(@?)
+            }
+            else
+            {
+                [select dlytrn.prtnum act_prtnum,
+                        sum(dlytrn.trnqty) act_qty,
+                        dlytrn.lodnum act_load,
+                        dlytrn.lotnum act_lot,
+                        uc_exp_rcpt_inventory.wh_id wh_id,
+                        uc_exp_rcpt_inventory.prtnum exp_prtnum,
+                        uc_exp_rcpt_inventory.trnqty exp_qty,
+                        uc_exp_rcpt_inventory.lodnum exp_load,
+                        uc_exp_rcpt_inventory.lotnum exp_lot,
+                        uc_exp_rcpt_inventory.supnum,
+                        uc_exp_rcpt_inventory.trknum
+                   From dlytrn
+                   join rf_term_mst
+                     on dlytrn.tostol = rf_term_mst.devcod
+                   join uc_exp_rcpt_inventory
+                     on dlytrn.lodnum = uc_exp_rcpt_inventory.lodnum
+                    and dlytrn.frstol = uc_exp_rcpt_inventory.trknum
+                    and dlytrn.actcod = 'ASN_NONTRUST'
+                    and uc_exp_rcpt_inventory.trknum = @trknum
+                    and uc_exp_rcpt_inventory.lodnum = @lodnum
+                  group by dlytrn.prtnum,
+                        dlytrn.lodnum,
+                        dlytrn.lotnum,
+                        uc_exp_rcpt_inventory.wh_id,
+                        uc_exp_rcpt_inventory.prtnum,
+                        uc_exp_rcpt_inventory.trnqty,
+                        uc_exp_rcpt_inventory.lodnum,
+                        uc_exp_rcpt_inventory.lotnum,
+                        uc_exp_rcpt_inventory.supnum,
+                        uc_exp_rcpt_inventory.trknum] catch(@?)
+            }
+        }
+    }
+    |
+    if (@exp_qty > @act_qty)
+    {
+        Publish data
+         where reason = decode(@exp_load, @act_load, decode(@exp_qty, @act_qty, decode(@exp_lot, @act_lot, 'RD01', 'RD03'), decode(@exp_prtnum, @act_prtnum, decode(@exp_lot, @act_lot, 'RD01', decode(@exp_qty, @act_qty, 'RD03', 'RD04')), decode(@exp_load, @act_load, decode(@exp_qty, @act_qty, 'RD06', 'RD07'), 'RD06'))), 'RD10')
+        |
+        list reason codes
+         where reacod = @reason
+        |
+        Publish data
+         where trknum = @trknum
+           and wh_id = @wh_id
+           and supnum = @supnum
+           and exp_load = @exp_load
+           and exp_prtnum = @exp_prtnum
+           and exp_lot = @exp_lot
+           and exp_qty = @exp_qty
+           and act_load = @act_load
+           and act_prtnum = @act_prtnum
+           and act_lot = @act_lot
+           and act_qty = @act_qty
+           and reason = @lngdsc
+    }
+    else if (@exp_qty < @act_qty and @exp_qty is not null)
+    {
+        Publish data
+         where reason = decode(@exp_load, @act_load, decode(@exp_qty, @act_qty, decode(@exp_lot, @act_lot, 'RD02', 'RD03'), decode(@exp_prtnum, @act_prtnum, decode(@exp_lot, @act_lot, 'RD02', decode(@exp_qty, @act_qty, 'RD03', 'RD05')), decode(@exp_load, @act_load, decode(@exp_qty, @act_qty, 'RD06', 'RD08'), 'RD06'))), 'RD10')
+        |
+        list reason codes
+         where reacod = @reason
+        |
+        Publish data
+         where trknum = @trknum
+           and wh_id = @wh_id
+           and supnum = @supnum
+           and exp_load = @exp_load
+           and exp_prtnum = @exp_prtnum
+           and exp_lot = @exp_lot
+           and exp_qty = @exp_qty
+           and act_load = @act_load
+           and act_prtnum = @act_prtnum
+           and act_lot = @act_lot
+           and act_qty = @act_qty
+           and reason = @lngdsc
+    }
+    else
+    {
+        if (@discrepancy = '1')
+        {
+            if (@exp_lot != @act_lot or @exp_prtnum != @act_prtnum)
+            {
+                Publish data
+                 where reason = decode(@exp_load, @act_load, decode(@exp_qty, @act_qty, decode(@exp_lot, @act_lot, '', 'RD03'), decode(@exp_prtnum, @act_prtnum, '', 'RD06')), 'RD11')
+                |
+                list reason codes
+                 where reacod = @reason catch(@?)
+                |
+                Publish data
+                 where trknum = @trknum
+                   and wh_id = @wh_id
+                   and supnum = @supnum
+                   and exp_load = @exp_load
+                   and exp_prtnum = @exp_prtnum
+                   and exp_lot = @exp_lot
+                   and exp_qty = @exp_qty
+                   and act_load = @act_load
+                   and act_prtnum = @act_prtnum
+                   and act_lot = @act_lot
+                   and act_qty = @act_qty
+                   and reason = @lngdsc
+            }
+        }
+        else
+        {
+            Publish data
+             where reason = decode(@exp_load, @act_load, decode(@exp_qty, @act_qty, decode(@exp_lot, @act_lot, '', 'RD03'), decode(@exp_prtnum, @act_prtnum, '', 'RD06')), 'RD11')
+            |
+            list reason codes
+             where reacod = @reason catch(@?)
+            |
+            Publish data
+             where trknum = @trknum
+               and wh_id = @wh_id
+               and supnum = @supnum
+               and exp_load = @exp_load
+               and exp_prtnum = @exp_prtnum
+               and exp_lot = @exp_lot
+               and exp_qty = @exp_qty
+               and act_load = @act_load
+               and act_prtnum = @act_prtnum
+               and act_lot = @act_lot
+               and act_qty = @act_qty
+               and reason = @lngdsc
+        }
+    }
+}
+]]>
+</local-syntax>
+</command>

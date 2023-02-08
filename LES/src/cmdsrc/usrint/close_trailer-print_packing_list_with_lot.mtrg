@@ -1,0 +1,40 @@
+<trigger>
+  <name>print packing list with lot</name>
+  <on-command>close trailer</on-command>
+  <description>print packing list with lot</description>
+  <fire-sequence>1200</fire-sequence>
+  <local-syntax>
+<![CDATA[
+[select distinct poldat.rtstr1 stcust,
+        car_move.car_move_id
+   from trlr
+   join car_move
+     on (car_move.trlr_id = trlr.trlr_id)
+   join stop
+     on (stop.car_move_id = car_move.car_move_id)
+   join shipment
+     on (shipment.stop_id = stop.stop_id)
+   join shipment_line
+     on shipment_line.ship_id = shipment.ship_id
+   join ord
+     on shipment_line.ordnum = ord.ordnum
+    and shipment_line.wh_id = ord.wh_id
+   join cstmst
+     on (cstmst.cstnum = ord.stcust)
+   join poldat
+     on (poldat.rtstr1 = cstmst.cstnum and poldat.polcod = 'USR-PACKING-LIST' and poldat.polvar = 'SEND-REPORT' and poldat.polval = 'SHIP-TO-CUSTOMER')
+  where trlr.trlr_id = @trlr_id
+    and trlr.trlr_cod = 'SHIP'] catch(@?)
+|
+if (@? = 0)
+{
+    publish data
+     where deferred_cmd = "raise usr ems event for packing list " || "where car_move_id = '" || @car_move_id || "'" || " and stcust = '" || @stcust || "'" || " and wh_id = '512' and usr_id =  'SUPER'"
+    |
+    create deferred execution
+     where deferred_cmd = @deferred_cmd
+}
+]]>
+</local-syntax>
+  <enable>yes</enable>
+</trigger>

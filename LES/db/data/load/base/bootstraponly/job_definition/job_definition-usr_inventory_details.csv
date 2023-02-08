@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-INVENTORY-DETAILS-REPORT,,Inventory Details_LPN_Item_Location_report,0,cron,raise usr ems alert for inventory details,$LESDIR/log/USR-INVENTORY-DETAILS-REPORT.log,,0,0 0 5 * * ?,0,,usr_data

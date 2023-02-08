@@ -1,0 +1,175 @@
+<command>
+  <name>usr billing master</name>
+  <description>Billing Master Details</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+list warehouses
+ where wh_id <> 'WMD1'
+ |
+ [select rtnum1 as days
+   from poldat
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'BILLING-ALERT'
+    and polval = 'DAYS'
+    and wh_id_tmpl = @wh_id]
+ |
+publish data
+ where beg_date = sysdate - @days
+   and end_date = sysdate
+   and wh_id = @wh_id
+|
+[select 'CP' code,
+        'Casepicked Cases' description,
+        nvl(sum(dlytrn.trnqty), 0) Qty
+   from dlytrn,
+        poldat,
+        poldat p1
+  where dlytrn.actcod = p1.rtstr1
+    and dlytrn.wh_id = pl.wh_id_tmpl
+    and dlytrn.fr_arecod = poldat.rtstr1
+    and dlytrn.to_arecod = poldat.rtstr2
+	and dlytrn.wh_id = poldat.wh_id_tmpl
+    and dlytrn.trndte between to_date(@beg_date, 'YYYYMMDDHH24MISS')
+    and to_date(@end_date, 'YYYYMMDDHH24MISS')
+	and poldat.polcod = 'USR-UNILEVER'
+    and poldat.polvar = 'BILLING-ALERT'
+    and poldat.polval = 'CASEPICKED-CASES'
+	and pl.polcod = 'USR-UNILEVER'
+    and pl.polvar = 'BILLING-ALERT'
+    and p1.polval = 'ACTCOD'
+ union all
+ select 'CW' code,
+        'Layer Cases Picked' description,
+        nvl(sum(dlytrn.trnqty), 0) Qty
+   from dlytrn,
+        prtftp,
+        poldat,
+        poldat p1
+  where dlytrn.prtnum = prtftp.prtnum
+    and dlytrn.wh_id = prtftp.wh_id
+    and prtftp.defftp_flg = 1
+    and dlytrn.actcod = p1.rtstr1
+	and dlytrn.wh_id = pl.wh_id_tmpl
+    and dlytrn.fr_arecod = poldat.rtstr1
+    and dlytrn.to_arecod = poldat.rtstr2
+	and dlytrn.wh_id = poldat.wh_id_tmpl
+    and dlytrn.trndte between to_date(@beg_date, 'YYYYMMDDHH24MISS')
+    and to_date(@end_date, 'YYYYMMDDHH24MISS')
+	and poldat.polcod = 'USR-UNILEVER'
+    and poldat.polvar = 'BILLING-ALERT'
+    and poldat.polval = 'LAYERS-PICKED'
+	and pl.polcod = 'USR-UNILEVER'
+    and pl.polvar = 'BILLING-ALERT'
+    and p1.polval = 'ACTCOD'
+	union all
+ select 'RK' code,
+        'SVG_Split_Pallets' description,
+        nvl(round((count(distinct lodnum) * 13 / 60), 2), 0) Qty
+   from dlytrn,
+		poldat
+  where dlytrn.oprcod in ('PRP', 'PIARPL', 'SVGPIARPL', 'SVGPRP')
+    and dlytrn.to_arecod = poldat.rtstr1
+	and dlytrn.wh_id = poldat.wh_id_tmpl
+    and dlytrn.trndte between to_date(@beg_date, 'YYYYMMDDHH24MISS')
+    and to_date(@end_date, 'YYYYMMDDHH24MISS')
+	and poldat.polcod = 'USR-UNILEVER'
+    and poldat.polvar = 'BILLING-ALERT'
+	and poldat.polval ='SVG-PALLETS'
+ union all
+ select 'RC' code,
+        'Received cases' description,
+        nvl(sum(invact.rcvqty), 0) Qty
+   from invact
+  where invact.actcod = 'INVRCV'
+    and invact.trndte between to_date(@beg_date, 'YYYYMMDDHH24MISS')
+    and to_date(@end_date, 'YYYYMMDDHH24MISS')
+ union all
+ select 'WL' code,
+        'Partial Pallets' description,
+        nvl(count(distinct data.lodnum), 0) Qty
+   from (select distinct dt.lodnum,
+                sum(dt.trnqty) trnqty,
+                pd.untqty,
+                dt.prtnum,
+                pd.ftpcod
+           from dlytrn dt,
+                prtmst p,
+                prtftp pf,
+                prtftp_dtl pd
+          where dt.prtnum = p.prtnum
+            and p.prtnum = pf.prtnum
+            and pf.prtnum = pd.prtnum
+            and pf.ftpcod = pd.ftpcod
+            and pf.defftp_flg = '1'
+            and pd.uomcod = 'PA'
+            and pd.wh_id = pf.wh_id
+            and pd.wh_id = @wh_id
+            and p.wh_id_tmpl = pd.wh_id
+            and dt.oprcod in ('IDN', 'RCV', 'URC', 'UID')
+            and dt.fr_arecod = 'EXPR'
+            and not exists(select max(dt2.trndte)
+                             from dlytrn dt2
+                            where dt.lodnum = dt2.lodnum
+                              and dt2.actcod = 'RVRCP'
+                            group by dt2.lodnum)
+            and dt.trnqty < pd.untqty
+            and dt.trndte between to_date(@beg_date, 'YYYYMMDDHH24MISS')
+            and to_date(@end_date, 'YYYYMMDDHH24MISS')
+          group by pd.ftpcod,
+                dt.prtnum,
+                dt.lodnum,
+                pd.untqty) data
+  where trnqty < untqty
+ union all
+ select 'RC' code,
+        'Recoup LPNs' description,
+        nvl(sum(trnqty), 0) Qty
+   from dlytrn
+  where toinvs = 'DAMG'
+    and trndte between to_date(@beg_date, 'YYYYMMDDHH24MISS')
+    and to_date(@end_date, 'YYYYMMDDHH24MISS')
+ union all
+ select 'OP' code,
+        'Outbound Pallets' description,
+        nvl(count(sum_loadnlbl.pallets), 0) Qty
+   from (select distinct iv.lodnum pallets
+           from all_inventory_view iv,
+                shipment_line sl,
+                trlr tr
+          where iv.ship_line_id = sl.ship_line_id
+            and iv.wh_id = sl.wh_id
+            and iv.stoloc = tr.trlr_id
+            and tr.trlr_stat = 'D'
+            and tr.dispatch_dte is not null
+            and tr.dispatch_dte between to_date(@beg_date, 'YYYYMMDDHH24MISS')
+            and to_date(@end_date, 'YYYYMMDDHH24MISS')) sum_loadnlbl
+ union all
+ select 'LP' code,
+        'Outbound Pallet Labels' description,
+        nvl(sum(sum_loadnlbl.labels), 0) Qty
+   from (select distinct iv.lodnum,
+                o.vc_label_cnt labels
+           from all_inventory_view iv,
+                shipment_line sl,
+                ord o,
+                trlr tr
+          where iv.ship_line_id = sl.ship_line_id
+            and iv.wh_id = sl.wh_id
+            and sl.ordnum = o.ordnum
+            and sl.client_id = o.client_id
+            and sl.wh_id = o.wh_id
+            and iv.stoloc = tr.trlr_id
+            and tr.trlr_stat = 'D'
+            and tr.dispatch_dte is not null
+            and tr.dispatch_dte between to_date(@beg_date, 'YYYYMMDDHH24MISS')
+            and to_date(@end_date, 'YYYYMMDDHH24MISS')) sum_loadnlbl]
+			]]>
+</local-syntax>
+  <documentation>
+<remarks></remarks>
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">No Records found</exception>
+
+</documentation>
+</command>

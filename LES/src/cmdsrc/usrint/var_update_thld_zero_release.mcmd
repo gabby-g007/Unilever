@@ -1,0 +1,178 @@
+<command>
+  <name>var update thld zero release</name>
+  <description>var update thld zero release</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+/*
+ * Katta, Dayakar: 25th November'2021: Command is modified to batch the INV-STS transactions by Item and Lot combination
+ */
+ 
+{
+    list warehouses
+     where wh_id <> 'WMD1'
+    |
+    [select distinct inventory_view.stoloc,
+            aremst.bldg_id,
+            inventory_view.age_pflnam,
+            inventory_view.expire_dte,
+            inventory_view.mandte,
+            inventory_view.prtnum,
+            inventory_view.lotnum,
+            inventory_view.untqty,
+            inventory_view.lodnum,
+            inventory_view.subnum,
+            inventory_view.dtlnum,
+            prtmst.rcvsts,
+            prtmst.lot_fmt_id,
+            round(decode(substr(prtmst.lot_fmt_id, 1, 1), 'E', (moca_util.date_diff_days(sysdate, inventory_view.expire_dte)), 'P', (moca_util.date_diff_days(inventory_view.mandte, sysdate)), null)) days_to_expire
+       from inventory_view,
+            locmst,
+            aremst,
+            prtmst,
+            loc_typ
+      where locmst.stoloc = inventory_view.stoloc
+        and locmst.arecod = aremst.arecod
+        and locmst.wh_id = aremst.wh_id
+        and loc_typ.fwiflg = 1
+        and loc_typ.loc_typ_id = locmst.loc_typ_id
+        and loc_typ.wh_id = locmst.wh_id
+        and aremst.wh_id = @wh_id
+        and prtmst.prtnum = inventory_view.prtnum
+        and inventory_view.invsts = 'THLD'
+        and inventory_view.wrkref is null
+        and inventory_view.lodnum not like 'PERM%'
+        and substr(substr(inventory_view.age_pflnam, instr(inventory_view.age_pflnam, '/') + 1), 1, instr(substr(inventory_view.age_pflnam, instr(inventory_view.age_pflnam, '/') + 1), '/') -1) = 0] catch(-1403) >> res
+    |
+    if (@? = 0)
+    {
+        generate next number
+         where numcod = 'uc_batch_evt_key'
+        |
+        publish data
+         where uc_batch_evt_key = @nxtnum
+        |
+        save session variable
+         where name = 'uc_batch_evt_key'
+           and value = @uc_batch_evt_key
+        |
+        publish data combination
+         where res = @res
+           and uc_batch_evt_key = @uc_batch_evt_key
+        |
+        [update invdtl
+            set invsts = 'RELS',
+                last_upd_user_id = 'ZRELSJOB',
+                last_upd_dt = sysdate
+          where dtlnum = @dtlnum] catch(@?)
+        |
+        list inventory
+         where dtlnum = @dtlnum
+           and wh_id = @wh_id
+        |
+        [select 'X'
+           from poldat_view
+          where polcod = 'USR-UNILEVER'
+            and polvar = 'EVENTS-BATCHING'
+            and polval = 'ENABLED'
+            and rtstr1 = 'INV-STS'
+            and wh_id = nvl(@wh_id, @@wh_id)
+            and rtnum1 = 1
+            and rownum < 2] catch(-1403)
+        |
+        if (@? = 0)
+        {
+            create record
+             where table = 'uc_inv_sts_hld_info'
+               and uc_batch_evt_key = @uc_batch_evt_key
+               and evt_id = 'INV-STS'
+               and wh_id = nvl(@wh_id, @@wh_id)
+               and arecod = @arecod
+               and stoloc = @stoloc
+               and lodnum = @lodnum
+               and subnum = @subnum
+               and dtlnum = @dtlnum
+               and prtnum = @prtnum
+               and prt_client_id = @prt_client_id
+               and orgcod = @orgcod
+               and revlvl = @revlvl
+               and lotnum = @lotnum
+               and sup_lotnum = @sup_lotnum
+               and supnum = @supnum
+               and fr_invsts = 'THLD'
+               and to_invsts = 'RELS'
+               and trnqty = @untqty
+               and hld_flg = @hld_flg
+               and mandte = @mandte
+               and expire_dte = @expire_dte
+               and reacod = @reacod
+               and trans_wh_id = nvl(@trans_wh_id, nvl(@wh_id, @@wh_id))
+               and ins_usr_id = nvl(@user_id, @@user_id)
+               and bldg_id = @bldg_id
+        }
+        else
+        {
+            sl_log event
+             where evt_id = 'INV-STS'
+               and ifd_data_ptr = NULL
+               and sys_id = 'DCS'
+               and FR_INVSTS = 'THLD'
+               and HSTDST = 'RELS'
+               and HSTSRC = 'THLD'
+               and PRTNUM = @prtnum
+               and TRNQTY = @untqty
+               and arecod = @arecod
+               and dtlnum = @dtlnum
+               and hld_flg = @hld_flg
+               and to_lotnum = @lotnum
+               and lodnum = @lodnum
+               and subnum = @subnum
+               and TO_MANDTE = @mandte
+               and TO_EXPIRE_DTE = @expdte
+               and to_invsts = 'RELS'
+               and TRANS_WH_ID = @wh_id
+               and wh_id = @wh_id
+               and usr_id = 'ZRELSJOB'
+               and stoloc = @stoloc
+        }
+        |
+        write daily transaction
+         where lodnum = @lodnum
+           and subnum = @subnum
+           and dtlnum = @dtlnum
+           and frinvs = 'THLD'
+           and toinvs = 'RELS'
+           and fr_arecod = @arecod
+           and to_arecod = @arecod
+           and frstol = @stoloc
+           and tostol = @stoloc
+           and movref = 'VAR_THLD_ZERO'
+           and reacod = @reacod
+           and actcod = 'INVSTSCHG'
+           and usr_id = 'ZRELSJOB'
+           and wh_id = @wh_id
+    }
+    else
+    {
+        sl_do nothing
+    };
+    get session variable
+     where name = 'uc_batch_evt_key' catch(-1403)
+    |
+    if(@uc_batch_evt_key is not null)
+    {
+        send usr batched inventory status transactions
+         where uc_batch_evt_key = @uc_batch_evt_key
+    }
+}
+
+]]>
+</local-syntax>
+  <documentation>
+<remarks></remarks>
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">No Records found.</exception>
+
+</documentation>
+</command>

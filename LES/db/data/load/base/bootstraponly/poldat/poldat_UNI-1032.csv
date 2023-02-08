@@ -1,0 +1,4 @@
+polcod,polvar,polval,wh_id_tmpl,srtseq,rtstr1,rtstr2,rtnum1,rtnum2,rtflt1,rtflt2,moddte,mod_usr_id,grp_nam
+USR-UNILEVER,EVENTS-BATCHING,ENABLED,----,0,<<Event ID>>,<<rtnum1 indicates whether enabled or not>>,0,0,0,0,SYSDATE,AMTEAM,UNI-1032
+USR-UNILEVER,EVENTS-BATCHING,ENABLED,----,1,INV-HLD,,1,0,0,0,SYSDATE,AMTEAM,
+USR-UNILEVER,EVENTS-BATCHING,ENABLED,----,2,INV-STS,,1,0,0,0,SYSDATE,AMTEAM,

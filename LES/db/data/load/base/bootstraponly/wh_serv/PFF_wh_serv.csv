@@ -1,0 +1,2 @@
+serv_id,wh_id,seqnum,mixed_prt_flg,spec_serv_cod,serv_enaflg,lodlvl,moddte,mod_usr_id,audit_thresh_cost,crncy_code,accum_flg
+PFF,512,1,0,,1,L,20220616075417,,,USD,0

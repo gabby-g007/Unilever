@@ -1,0 +1,58 @@
+<command>
+<name>list usr shorts report</name>
+<description>List USR Shorts Report</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'rplsts_view.ordnum')
+|
+[/*#limit=@offset,@limit,true*/
+ select appt.start_dte,
+        rplsts_view.car_move_id,
+        rplsts_view.ordnum,
+        rplsts_view.prtnum,
+        ord_line.ordqty,
+        rplsts_view.pckqty shorts,
+        '' as 'D'
+   from rplsts_view
+   join ord_line
+     on rplsts_view.ordnum = ord_line.ordnum
+    and rplsts_view.ordlin = ord_line.ordlin
+    and rplsts_view.client_id = ord_line.client_id
+    and rplsts_view.wh_id = ord_line.wh_id
+    and rplsts_view.prtnum = ord_line.prtnum
+    and rplsts_view.prt_client_id = ord_line.prt_client_id
+   left
+   join appt
+     on rplsts_view.car_move_id = appt.car_move_id
+  where @filterByClause:raw
+    and @+rplsts_view.wh_id
+    and @*
+  order by @sortOrderClause:raw]
+
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list the current shorts with the appointment start Date
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

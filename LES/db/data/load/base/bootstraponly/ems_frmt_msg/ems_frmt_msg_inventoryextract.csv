@@ -1,0 +1,2 @@
+evt_nam,locale_id,subfld,frmt_msg,html_msg,moddte,mod_usr_id,grp_nam
+USR-INVENTORY-DETAILS-REPORT,US_ENGLISH,Inventory Details Extract Report: @lngdsc - @wh_id,"Attached is the list of Item, LPN and Locations extract",,,NOUSER,usr_data

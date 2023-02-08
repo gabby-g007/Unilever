@@ -1,0 +1,36 @@
+<command>
+  <name>process usr escque</name>
+  <description>process usr escque</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+[SELECT min(a.start_dte) start_dte,
+        dense_rank() OVER(
+                           ORDER BY min(start_dte) ASC) *35 AS LPCK_VELOCITY,
+        w.reqnum,
+        w.list_id
+   FROM wrkque w
+   JOIN SHIPPING_PCKWRK_VIEW s
+     ON s.list_id = w.list_id
+   JOIN appt a
+     ON a.car_move_id = s.car_move_id
+  WHERE w.oprcod in ('LPCK', 'WMLP', 'CPCK')
+    AND w.wrksts = 'PEND'
+    AND w.effpri > '34'
+    and patindex('%[R|S|H]%', s.srcloc) > 0
+    AND TO_CHAR(a.start_dte, 'MI') = '00'
+  group by w.reqnum,
+        w.list_id]
+|
+if (@? = 0 and @reqnum is not null and @reqnum != '')
+{
+    [update wrkque
+        set baspri = @LPCK_VELOCITY,
+            effpri = @LPCK_VELOCITY
+      where reqnum = @reqnum]
+}
+ 
+]]>
+</local-syntax>
+</command>

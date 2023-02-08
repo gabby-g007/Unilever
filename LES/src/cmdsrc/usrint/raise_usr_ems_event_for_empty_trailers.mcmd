@@ -1,0 +1,122 @@
+<command>
+  <name>raise usr ems event for empty trailers</name>
+  <description>raise usr ems event for empty trailers</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+list warehouses
+ where wh_id [not in ('WMD1' ,'----' )]
+|
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    publish data
+     where evt_msg = "The following Carrier has trailers Ready for Pickup:
+   Warehouse:        @wh_id 
+   Carrier:          @carcod 
+   
+   Please check file attached for further details"
+       and evt_subj = "Empty Trailer is Ready for Pickup - @wh_id"
+       and evt_qual = "wh_id,carcod"
+       and evt_grp = 'SHIPPING'
+       and evt_pri = '1'
+       and evt_nam = 'USR-EMS-EMPTY-TRAILERS'
+       and src_sys = @src_sys
+       and lngdsc = 'Empty Trailer in Yard'
+}
+else
+{
+    get ems event information
+     where evt_nam = 'USR-EMS-EMPTY-TRAILERS'
+    |
+    if (@enabled = 1)
+    {
+        [select trlr.carcod,
+                count(trlr.trlr_num) trlr_count
+           from trlr
+          RIGHT
+           JOIN rcvtrk RT
+             on trlr.trlr_id = RT.trlr_id
+          where stoloc_wh_id = @wh_id
+            and trlr_stat not in ('EX', 'R', 'OR', 'CI', 'D', 'SUSP')
+            and trlr.trlr_cod = 'RCV'
+            and trlr.turn_flg = 0
+            and trlr.live_load_flg = 0
+          group by trlr.carcod
+          order by trlr.carcod] CATCH(-1403, 510)
+        |
+        if (@carcod and @trlr_count > 0)
+        {
+            [select trlr.carcod,
+                    trlr.trlr_num,
+                    trlr.yard_loc,
+                    trlr.trlr_stat,
+                    to_char(trlr.arrdte, 'MM/DD/YYYY HH24:MI:SS') arrdte,
+                    to_char(trlr.close_dte, 'MM/DD/YYYY HH24:MI:SS') close_dte,
+                    convert(int, datediff(hh, sysdate, trlr.arrdte) *24) -5 dwell_hours,
+                    (case when trlr.trlr_cod = 'RCV' and rt.trknum is not null and rt.rcvtrk_stat = 'C' and trlr.yard_loc is not null then 'Empty'
+                          when trlr.trlr_cod = 'RCV' and rt.trknum is null and rt.rcvtrk_stat is null and trlr.yard_loc in (select locmst.stoloc
+                                                                                                                              from locmst
+                                                                                                                              join loc_typ
+                                                                                                                                on locmst.loc_typ_id = loc_typ.loc_typ_id
+                                                                                                                               and locmst.wh_id = loc_typ.wh_id
+                                                                                                                             where loc_typ.yrdflg = 1) then 'Empty'
+                     end) new_trlr_stat,
+                    to_char(sysdate, 'MM/DD/YYYY HH24:MI:SS') ems_triggered_at
+               from trlr
+              RIGHT
+               JOIN rcvtrk RT
+                 on trlr.trlr_id = RT.trlr_id
+              where stoloc_wh_id = @wh_id
+                and trlr_stat not in ('EX', 'R', 'OR', 'CI', 'D', 'SUSP')
+                and trlr.trlr_cod = 'RCV'
+                and trlr.turn_flg = 0
+                and carcod = @carcod
+                and trlr.live_load_flg = 0
+              order by trlr.carcod,
+                    trlr.trlr_num] CATCH(-1403, 510) >> res
+            |
+            [select to_char(sysdate, 'YYYYMMDDHH24MISS') fildte
+               from dual]
+            |
+            expand environment variable
+             where variable = '$LESDIR'
+            |
+            [select replace(@value, 'les', 'LES') || '\files\emsout\' filepath
+               from dual]
+            |
+            publish data
+             where res = @res
+               and carcod = @carcod
+               and filnam = @carcod || '-' || @fildte || '.csv'
+               and filepath = @filepath
+               and wh_id = @wh_id
+            |
+            write csv file
+             where resdata = @res
+               and filnam = @filnam
+               and path = @filepath
+            |
+            go to sleep
+             where sleeptime = 5
+            |
+            get server information
+            |
+            log ems event
+             where evt_nam = 'USR-EMS-EMPTY-TRAILERS'
+               and key_val = @carcod || ' - ' || sysdate
+               and carcod = @carcod
+               and wh_id = @wh_id
+               and src_sys = @src_sys
+               and in_trans = 0
+               and locale_id = 'US_ENGLISH'
+               and att_app_srv = @url
+               and att_file = @filnam
+               and att_path = @filepath || @filnam
+        }
+    }
+}
+]]>
+</local-syntax>
+</command>

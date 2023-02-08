@@ -1,0 +1,37 @@
+<command>
+  <name>validate usr equipment size</name>
+  <description>This is to validate user entered equipment size</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+/*Check trailer size entered is valid if validation is ON*/
+if (@trlr_size != null and @trlr_size != '')
+{
+    [select count(rtstr1) isvalidationreq
+       from poldat_view
+      where polcod = 'DSS-UNILEVER-YMS'
+        and polvar = 'YMS-INTEGRATION'
+        and polval = 'PINC-TRAILER-SIZE'
+        and wh_id = nvl(@wh_id, @@wh_id)
+        and rtnum2 = 1]
+    |
+    if (@isvalidationreq > 0)
+    {
+        [select count(rtstr1) isvalidsize
+           from poldat_view
+          where polcod = 'DSS-UNILEVER-YMS'
+            and polvar = 'YMS-INTEGRATION'
+            and polval = 'PINC-TRAILER-SIZE'
+            and wh_id = nvl(@wh_id, @@wh_id)
+            and rtnum1 = @trlr_size]
+        |
+        if (@isvalidsize = 0)
+        {
+            set return status
+             where code = '90000'
+        }
+    }
+}
+]]>
+</local-syntax>
+</command>

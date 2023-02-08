@@ -1,0 +1,2 @@
+polcod,polvar,polval,wh_id_tmpl,srtseq,rtstr1,rtstr2,rtnum1,rtnum2,rtflt1,rtflt2,moddte,mod_usr_id,grp_nam
+USR-UNILEVER,JOBS,USR-REMOVE-OLD-EXPECTED-TRAILER-AND-RECEIPT  ,----,1,<rtnum1=EXPECTED-RECEIPT-OLDER-DAYS>,<rtnum2=EXPECTED-TRAILER-OLDER-DAYS>,45,30,0,0,10/8/2021 9:29:04 AM,VVENU,

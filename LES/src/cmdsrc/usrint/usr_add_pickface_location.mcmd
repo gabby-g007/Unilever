@@ -1,0 +1,42 @@
+<command>
+  <name>usr add pickface location</name>
+  <description>usr add pickface location</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+[select colval invsts
+   from dscmst
+  where colnam = 'invsts'
+    and lngdsc = @invsts]
+|
+[select rplnum
+   from rplcfg
+  where stoloc = @stoloc] catch(-1403)
+|
+if (@rplnum is not null)
+{
+    set return status
+     where status = 10410
+}
+else
+{
+    create replenishment configuration
+     where wh_id = nvl(@wh_id, @@wh_id)
+       and stoloc = @stoloc
+       and prtnum = @prtnum
+       and pctflg = '1'
+       and maxunt = @maxunt
+       and minunt = @minunt
+       and invsts = @invsts
+       and rls_pct = @rls_pct
+       and inc_unt = @inc_unt
+	   and inc_pct_flg = @inc_pct_flg
+}
+|
+publish data
+ where prtnum = @prtnum
+ 
+]]>
+</local-syntax>
+</command>

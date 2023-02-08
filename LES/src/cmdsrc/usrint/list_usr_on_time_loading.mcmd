@@ -1,0 +1,120 @@
+<command>
+  <name>list usr on time loading</name>
+  <description>List On Time Loading Details</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and sortOrderClause = nvl(@sortOrderClause, 'temp.start_dte desc')
+   and wh_id = nvl(@wh_id, @@wh_id)
+|
+[/*#limit=@offset,@limit,true*/
+ select temp.car_move_id,
+        temp.adrnam,
+        temp.carcod,
+        temp.start_dte,
+        temp.end_dte,
+        temp.ordtyp,
+        temp.nottxt,
+        temp.loddte,
+        temp.otl_minutes,
+        temp.on_time_loading,
+        temp.late_reacod,
+        temp.late_reacod_txt
+   from (select res.car_move_id,
+                (select string_agg(adrmst.adrnam, '/') within group(order by ord.stcust)
+                   from adrmst
+                   join ord
+                     on adrmst.host_ext_id = ord.stcust
+                  where ord.ordnum = res.ordnum) adrnam,
+                res.carcod,
+                res.start_dte,
+                res.end_dte,
+                res.ordtyp,
+                case when (res.OTL_Minutes > 0 or res.OTL_Minutes <= 0)
+                 and (res.nottxt = 'DROP' or res.nottxt != 'LIVE')
+                 and (res.loddte is not null) then 'DROP'
+                     else res.nottxt
+                end as nottxt,
+                loddte,
+                OTL_Minutes,
+                case when res.OTL_Minutes > 0
+                 and res.nottxt = 'DROP'
+                 and (res.loddte is not null) then 'NO'
+                     when res.OTL_Minutes <= 0
+                 and res.nottxt = 'DROP'
+                 and (res.loddte is not null) then 'YES'
+                     when res.OTL_Minutes <= 120
+                 and res.nottxt = 'LIVE'
+                 and (res.loddte is not null) then 'YES'
+                     when res.OTL_Minutes > 120
+                 and res.nottxt = 'LIVE'
+                 and (res.loddte is not null) then 'NO'
+                     else ''
+                end as On_Time_Loading,
+                (select nottxt
+                   from car_move_note cmn
+                  where cmn.car_move_id = res.car_move_id
+                    and cmn.nottyp = 'REA') late_reacod,
+                (select distinct reacod_dsc.lngdsc 
+                   from reacod_reagrp
+                   join reacod
+                     on reacod.reacod = reacod_reagrp.reacod
+                   join car_move_note cmn
+                     on cmn.nottxt = reacod.reacod
+                    and cmn.nottyp = 'REA'
+                   left outer
+                   join dscmst reacod_dsc
+                     on reacod_dsc.colnam = 'reacod'
+                    and reacod_dsc.colval = reacod_reagrp.reacod
+                    and reacod_dsc.locale_id = nvl(@locale_id, @@locale_id)
+                  where nvl(@client_id, client_id) = client_id
+                    and reacod_reagrp.reagrp = 'LATE_REASON'
+                    and cmn.car_move_id = res.car_move_id) late_reacod_txt
+           from (select distinct appt.car_move_id,
+                        appt.carcod,
+                        appt.start_dte,
+                        appt.end_dte,
+                        ord.ordnum,
+                        ssv.stgdte,
+                        ord.ordtyp,
+                        substr(appt_note.nottxt, 0, 5) nottxt,
+                        ssv.loddte,
+                        convert(int, (SSV.loddte - appt.start_dte)) * 1440 OTL_Minutes,
+                        rank() over(partition by appt.car_move_id
+                                     order by ssv.loddte desc,
+                                           ssv.stgdte desc,
+                                           ord.ordnum desc) rank
+                   from appt
+                   join ship_struct_view SSV
+                     on appt.car_move_id = SSV.car_move_id
+                   join ord
+                     on ord.ordnum = SSV.ship_id
+                   join adrmst am
+                     on am.host_ext_id = ord.stcust
+                   join appt_note
+                     on appt.appt_id = appt_note.appt_id
+                  where appt.wh_id = nvl(@wh_id, @@wh_id)
+                    and appt.trlr_cod = 'SHIP'
+                    and appt.slot_id = 'OUTBOUND'
+                    and @+ssv.car_move_id
+                  group by appt.car_move_id,
+                        appt_note.nottxt,
+                        appt.start_dte,
+                        appt.carcod,
+                        appt.start_dte,
+                        ssv.stgdte,
+                        appt.end_dte,
+                        ssv.loddte,
+                        ord.ordtyp,
+                        ord.ordnum) res
+          where res.rank = 1) temp
+  where @filterByClause:raw
+  order by @sortOrderClause:raw]
+  
+]]>
+</local-syntax>
+</command>

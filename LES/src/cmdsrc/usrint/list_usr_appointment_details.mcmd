@@ -1,0 +1,451 @@
+<command>
+  <name>list usr appointment details</name>
+  <description>List USR Appointment Details</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'appt.start_dte, appt.end_dte, ship_struct_view.car_move_id')
+|
+[select '''' || rtstr2 || '''' || ',' || '''' || rtstr1 || '''' ovfl
+   from poldat
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'OVERFLOW'
+    and polval = 'BLDG-CODE'
+    and rtnum1 = 1] catch(@?) >> bldg
+|
+convert column results to string
+ where colnam = 'ovfl'
+   and res = @bldg
+   and count = 10
+|
+if (@result_string is null)
+{
+    publish data
+     where result_string = "'X', ''"
+}
+|
+[/*#limit=@offset,@limit,true*/
+ select appt.appt_id,
+        appt.start_dte as original_start_dte,
+        appt.end_dte as original_end_dte,
+        uc_appt_eta.resch_start_dte,
+        uc_appt_eta.resch_end_dte,
+        ship_struct_view.wh_id,
+        car_move.carcod,
+        car_move.attn_cod,
+        adrmst.adrnam,
+        ship_struct_view.car_move_id,
+        (select string_agg(rtrim(car_move_note.nottxt), ',') within group(order by car_move_note.notlin desc)
+           from car_move_note
+          where car_move_note.car_move_id = ship_struct_view.car_move_id
+            and car_move_note.nottyp = 'GEN') cmvnottxt,
+        (select max(car_move_note.notlin)
+           from car_move_note
+          where car_move_note.car_move_id = ship_struct_view.car_move_id
+            and car_move_note.nottyp = 'GEN') cmvnotlin,
+        (select nottxt
+           from car_move_note cmn
+          where cmn.car_move_id = ship_struct_view.car_move_id
+            and cmn.nottyp = 'REA') nottxt1,
+        ord.ordnum,
+        ord.ordtyp,
+        ship_struct_view.ship_id,
+        dscmst.colval as shpsts,
+        dscmst.lngdsc as long_shpsts,
+        ship_struct_view.trlr_num,
+        ship_struct_view.trlr_cod,
+        decode(ship_struct_view.trlr_stat, 'C', 'Yard', 'O', 'Open', ship_struct_view.trlr_stat) trlr_stat,
+        decode(ship_struct_view.shpsts, 'C', (sum(ord_line.ordqty) - sum(ord_line.shpqty)), 0) cut_qty,
+        decode(ship_struct_view.shpsts, 'I', rplwrk_qty.rpl_qty, 0) shrt_qty,
+        decode(ship_struct_view.shpsts, 'S', sum(shipment_line.pckqty), 'L', sum(shipment_line.pckqty), 'D', sum(shipment_line.pckqty), 0) inprocess_qty,
+        decode(ship_struct_view.shpsts, 'C', 0, ord_canc.cancqty) cancqty,
+        sum(ord_line.ordqty) orderd_qty,
+        nvl(appl_qty.app_qty, 0) picked_qty,
+        nvl(rema_qty.remqty, 0) remaining_qty,
+        nvl(plt_cnt.pallet_cnt, 0) remaining_palts,
+        nvl(cs_cnt.case_cnt, 0) remaining_cases_picks,
+        nvl(rem_case_qty.rem_case_qty, 0) remaining_case_qty,
+        nvl(ordl_cnt.ordlin_cnt, 0) ordlin_cnt,
+        nvl(nvl(ship_struct_view.dstloc, dstloc_view.dstloc), decode(ord_line.alc_search_path, @result_string:raw)) dstloc,
+        trlr.yard_loc,
+        trlr.vc_trlr_ref
+   from ship_struct_view
+   join shipment_line
+     on ship_struct_view.wh_id = shipment_line.wh_id
+    and ship_struct_view.ship_id = shipment_line.ship_id
+   join dscmst
+     on ship_struct_view.shpsts = dscmst.colval
+    and dscmst.colnam = 'shpsts'
+   join ord_line
+     on ord_line.ordnum = shipment_line.ordnum
+    and ord_line.ordlin = shipment_line.ordlin
+    and ord_line.ordsln = shipment_line.ordsln
+    and ord_line.client_id = shipment_line.client_id
+    and ord_line.wh_id = shipment_line.wh_id
+   join ord
+     on ord.ordnum = ord_line.ordnum
+    and ord.client_id = ord_line.client_id
+    and ord.wh_id = ord_line.wh_id
+   join adrmst
+     on adrmst.adr_id = ord.st_adr_id
+   join car_move
+     on car_move.wh_id = ship_struct_view.wh_id
+    and car_move.car_move_id = ship_struct_view.car_move_id
+   left
+   join appt
+     on appt.wh_id = car_move.wh_id
+    and appt.car_move_id = car_move.car_move_id
+   left
+   join trlr
+     on trlr.trlr_id = car_move.trlr_id
+   left
+   join uc_appt_eta
+     on uc_appt_eta.wh_id = car_move.wh_id
+    and uc_appt_eta.car_move_id = car_move.car_move_id
+   left
+   join (select count(*) pallet_cnt,
+                ordnum,
+                wh_id
+           from pckwrk_dtl
+          where wh_id = nvl(@wh_id, @@wh_id)
+            and lodlvl = 'L'
+            and pckwrk_dtl.pckqty <> pckwrk_dtl.appqty
+          group by ordnum,
+                wh_id) plt_cnt
+     on plt_cnt.ordnum = ord.ordnum
+    and plt_cnt.wh_id = ord.wh_id
+   left
+   join (select count(*) case_cnt,
+                ordnum,
+                wh_id
+           from pckwrk_dtl
+          where wh_id = nvl(@wh_id, @@wh_id)
+            and lodlvl = 'S'
+            and pckwrk_dtl.pckqty <> pckwrk_dtl.appqty
+          group by ordnum,
+                wh_id) cs_cnt
+     on cs_cnt.ordnum = ord.ordnum
+    and cs_cnt.wh_id = ord.wh_id
+   left
+   join (select sum(pckwrk_dtl.pckqty) - sum(pckwrk_dtl.appqty) rem_case_qty,
+                ordnum,
+                wh_id
+           from pckwrk_dtl
+          where wh_id = nvl(@wh_id, @@wh_id)
+            and lodlvl = 'S'
+            and pckwrk_dtl.pckqty <> pckwrk_dtl.appqty
+          group by ordnum,
+                wh_id) rem_case_qty
+     on rem_case_qty.ordnum = ord.ordnum
+    and rem_case_qty.wh_id = ord.wh_id
+   left
+   join (select sum(pckwrk_dtl .appqty) app_qty,
+                ordnum,
+                wh_id
+           from pckwrk_dtl
+          where wh_id = nvl(@wh_id, @@wh_id)
+          group by ordnum,
+                wh_id) appl_qty
+     on appl_qty.ordnum = ord.ordnum
+    and appl_qty.wh_id = ord.wh_id
+   left
+   join (select sum(pckwrk_dtl.pckqty) - sum(pckwrk_dtl.appqty) remqty,
+                ordnum,
+                wh_id
+           from pckwrk_dtl
+          where wh_id = nvl(@wh_id, @@wh_id)
+          group by ordnum,
+                wh_id) rema_qty
+     on rema_qty.ordnum = ord.ordnum
+    and rema_qty.wh_id = ord.wh_id
+   left
+   join (select count(ordlin) ordlin_cnt,
+                ordnum,
+                wh_id
+           from ord_line
+          where wh_id = nvl(@wh_id, @@wh_id)
+          group by ordnum,
+                wh_id) ordl_cnt
+     on ordl_cnt.ordnum = ord.ordnum
+    and ordl_cnt.wh_id = ord.wh_id
+   left
+   join (select (sum(ord_line.ordqty) - sum(shipment_line.stgqty)) cancqty,
+                ord_line.ordnum,
+                ord_line.wh_id
+           from ord_line,
+                shipment_line
+          where ord_line.wh_id = nvl(@wh_id, @@wh_id)
+            and ord_line.ordnum = shipment_line.ordnum
+            and ord_line.ordlin = shipment_line.ordlin
+            and shipment_line.pckqty = 0
+            and shipment_line.inpqty = 0
+            and shipment_line.shpqty = 0
+            and shipment_line.linsts = 'I'
+          group by ord_line.ordnum,
+                ord_line.wh_id) ord_canc
+     on ord_canc.ordnum = ord.ordnum
+    and ord_canc.wh_id = ord.wh_id
+   left
+   join (select sum(pckqty) rpl_qty,
+                ordnum,
+                wh_id
+           from rplwrk
+          where wh_id = nvl(@wh_id, @@wh_id)
+            and rplsts in ('I', 'S')
+          group by ordnum,
+                wh_id) rplwrk_qty
+     on rplwrk_qty.wh_id = ord.wh_id
+    and rplwrk_qty.ordnum = ord.ordnum
+   left
+   join (select distinct (dstloc) dstloc,
+                ordnum,
+                wh_id
+           from pckwrk_dtl
+          where wh_id = nvl(@wh_id, @@wh_id)
+            and dstloc is not null
+          group by ordnum,
+                dstloc,
+                wh_id) dstloc_view
+     on dstloc_view.ordnum = ord.ordnum
+    and dstloc_view.wh_id = ord.wh_id
+  where @filterByClause:raw
+    and ord.wh_id = nvl(@wh_id, @@wh_id)
+  group by appt.appt_id,
+        appt.start_dte,
+        appt.end_dte,
+        uc_appt_eta.resch_start_dte,
+        uc_appt_eta.resch_end_dte,
+        ship_struct_view.trlr_stat,
+        ship_struct_view.wh_id,
+        ship_struct_view.car_move_id,
+        car_move.carcod,
+        car_move.attn_cod,
+        ord.ordnum,
+        ord.ordtyp,
+        ship_struct_view.ship_id,
+        adrmst.adrnam,
+        dscmst.lngdsc,
+        dscmst.colval,
+        ship_struct_view.shpsts,
+        plt_cnt.pallet_cnt,
+        ship_struct_view.trlr_num,
+        ship_struct_view.trlr_cod,
+        cs_cnt.case_cnt,
+        rema_qty.remqty,
+        rem_case_qty.rem_case_qty,
+        ordl_cnt.ordlin_cnt,
+        rplwrk_qty.rpl_qty,
+        ord_canc.cancqty,
+        appl_qty.app_qty,
+        dstloc_view.dstloc,
+        ship_struct_view.dstloc,
+        decode(ord_line.alc_search_path, @result_string:raw),
+        trlr.yard_loc,
+        trlr.vc_trlr_ref
+  order by @sortOrderClause:raw] >> res
+|
+[[
+    PagedResults pagedRes = (PagedResults) res;
+    Integer total_row_count = pagedRes.getTotalRowCount();
+]]
+|
+publish data
+ where resCount = @result
+|
+{
+    publish data combination
+     where res = @res
+    |
+    {
+        /*Grouping all trailer notes on a single line*/
+        [select trlr_note.nottxt trlrnote
+           from trlr
+           join trlr_note
+             on trlr.trlr_id = trlr_note.trlr_id
+          where trlr.appt_id = @appt_id] catch(@?) >> res
+        |
+        convert column results to string
+         where colnam = 'trlrnote'
+           and res = @res
+           and separator = ', '
+        |
+        publish data
+         where trlr_str = @result_string
+    }
+    |
+    {
+        /*Grouping all appointment notes on a single line*/
+        [select appt_note.nottxt apptnote
+           from appt_note
+          where appt_note.appt_id = @appt_id] catch(@?) >> res1
+        |
+        convert column results to string
+         where colnam = 'apptnote'
+           and res = @res1
+           and separator = ', '
+        |
+        publish data
+         where appt_str = @result_string
+    }
+    |
+    {
+        /*Grouping all order notes on a single line*/
+        [select ord_note.nottxt ordnote
+           from ord_note
+          where ord_note.ordnum = @ordnum
+            and wh_id = nvl(@wh_id, @@wh_id)] catch(@?) >> res3
+        |
+        convert column results to string
+         where colnam = 'ordnote'
+           and res = @res3
+           and separator = ', '
+        |
+        publish data
+         where ord_str = @result_string
+    }
+    |
+    if (@shpsts = 'R')
+    {
+        get shipment pick estimate
+         where ship_id = @ship_id
+           and wh_id = @wh_id catch(@?)
+    }
+    /*VC EMUCINO START 040616 Added functionality for Newville*/
+    else if (@shpsts = 'L')
+    {
+        [select count(inventory_view.lodnum) count_total_pal
+           from inventory_view
+           join shipment_line
+             on inventory_view.ship_line_id = shipment_line.ship_line_id
+            and inventory_view.wh_id = shipment_line.wh_id
+          where shipment_line.ship_id = @ship_id
+            and inventory_view.wh_id = nvl(@wh_id, @@wh_id)]
+        |
+        [select count(inventory_view.lodnum) count_total_loaded
+           from inventory_view
+           join locmst
+             on inventory_view.stoloc = locmst.stoloc
+            and inventory_view.wh_id = locmst.wh_id
+           join loc_typ
+             on loc_typ.loc_typ_id = locmst.loc_typ_id
+            and loc_typ.wh_id = locmst.wh_id
+            and loc_typ.dispatch_flg = 1
+           join shipment_line
+             on inventory_view.ship_line_id = shipment_line.ship_line_id
+            and inventory_view.wh_id = shipment_line.wh_id
+          where shipment_line.ship_id = @ship_id
+            and inventory_view.wh_id = nvl(@wh_id, @@wh_id)]
+        |
+        publish data
+         where prct_loaded = (@count_total_loaded *100) / @count_total_pal
+           and rest_pal = @count_total_pal - @count_total_loaded
+    }
+    else if (@shpsts = 'C')
+    {
+        [Select sum(inventory_view.untqty) tot_cas_pick,
+                round(sum(inventory_view.untqty / prtftp_view.untpal)) tot_pal_pick
+           from inventory_view
+           join shipment_line
+             on inventory_view.ship_line_id = shipment_line.ship_line_id
+            and inventory_view.wh_id = shipment_line.wh_id
+           join prtftp_view
+             on inventory_view.prtnum = prtftp_view.prtnum
+            and inventory_view.prt_client_id = prtftp_view.prt_client_id
+            and inventory_view.wh_id = prtftp_view.wh_id
+            and inventory_view.ftpcod = prtftp_view.ftpcod
+          where shipment_line.ship_id = @ship_id
+            and inventory_view.wh_id = nvl(@wh_id, @@wh_id)]
+    }
+    |
+    validate usr pff items
+    |
+    publish data
+     where wh_id = @wh_id
+       and appt_note = @appt_str
+       and appt_id = @appt_id
+       and original_start_dte = @original_start_dte
+       and original_end_dte = @original_end_dte
+       and resch_start_dte = @resch_start_dte
+       and resch_end_dte = @resch_end_dte
+       and carcod = @carcod
+       and cmvnottxt = @cmvnottxt
+       and cmvnotlin = @cmvnotlin
+       and nottxt1 = @nottxt1
+       and attn_cod = @attn_cod
+       and adrnam = @adrnam
+       and car_move_id = @car_move_id
+       and trlr_note = @trlr_str
+       and ordnum = @ordnum
+       and ordtyp = @ordtyp
+       and ord_note = @ord_str
+       and ship_id = @ship_id
+       and shpsts = @long_shpsts
+       and trlr_num = @trlr_num
+       and trlr_cod = @trlr_cod
+       and trlr_stat = @trlr_stat
+       and orderd_qty = @orderd_qty
+       and picked_qty = @picked_qty
+       and cut_qty = @cut_qty
+       and shrt_qty = nvl(@shrt_qty, 0)
+       and inprocess_qty = @inprocess_qty
+       and cancqty = nvl(@cancqty, 0)
+       and numppk = nvl(@numppk, 0)
+       and numcpk = nvl(@numcpk, 0)
+       and remaining_qty = @remaining_qty
+       and remaining_palts = @remaining_palts
+       and remaining_cases_picks = @remaining_cases_picks
+       and remaining_case_qty = @remaining_case_qty
+       and ordlin_cnt = @ordlin_cnt
+       and dstloc = @dstloc
+       and prct_loaded = nvl(@prct_loaded, 0)
+       and rest_pal = nvl(@rest_pal, 0)
+       and tot_cas_pick = nvl(@tot_cas_pick, 0)
+       and tot_pal_pick = nvl(@tot_pal_pick, 0)
+       and pff_flag = @pff_flag
+       and yard_loc = @yard_loc
+       and vc_trlr_ref = @vc_trlr_ref
+} >> totalRes
+|
+/* publish the results as paged results with pagination. */
+if (rowcount(@totalRes) > 0)
+{
+    publish data
+     where currentrow = rowcount(@totalRes)
+       and totalResults = @resCount
+    |
+    if (@totalResults > @limit)
+    {
+        publish data
+         where total_rowcount = @resCount - @currentrow
+           and finalRes = @totalRes
+    }
+    else
+    {
+        publish data
+         where total_rowcount = 0
+           and finalRes = @totalRes
+    }
+    |
+    if (@limit and @finalRes)
+    {
+        get paged results
+         where mocaRes = @finalRes
+           and limit = @limit
+           and offset = @offset
+           and totalRowCount = @total_rowcount
+    }
+}
+]]>
+</local-syntax>
+  <argument name="@*" datatype="">Any field value</argument>
+  <documentation>
+<remarks></remarks>
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

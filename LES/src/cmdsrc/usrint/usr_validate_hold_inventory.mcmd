@@ -1,0 +1,34 @@
+<command>
+  <name>usr validate hold inventory</name>
+  <description>usr validate hold inventory</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+ publish data
+ where lodnum = @lodnum
+|
+[select inventory_view.lodnum,
+        invhld.dtlnum,
+        invhld.hldnum,
+        inventory_view.hld_flg
+   from inventory_view,
+        invhld
+  where inventory_view.dtlnum = invhld.dtlnum
+    and inventory_view.lodnum = @lodnum] catch(@?)
+|
+if (@? = 0)
+{
+    [select hldmst.hldnum,
+            hldmst.alcflg
+       from hldmst
+      where hldnum = @hldnum]
+    |
+    if (@alcflg = 0)
+    {
+        set return status
+         where status = 10450
+    }
+}
+]]>
+   </local-syntax>
+</command>

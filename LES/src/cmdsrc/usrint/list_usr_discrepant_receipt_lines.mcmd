@@ -1,0 +1,239 @@
+<command>
+
+<name>list usr discrepant receipt lines</name>
+
+<description>List USR Discrepant Receipt Lines</description>
+
+<type>Local Syntax</type>
+
+<local-syntax>
+<![CDATA[
+    /*
+     * UNI-930: Katta, Dayakar: 29-Oct-2020
+     * This command was modified to allow the receive status discrepancies as, at UL status on inbound order line
+     * will usually be different from what received
+     */
+    get client in clause for user
+      where usr_id = nvl(@usr_id, @@usr_id)
+        and table_prefix = 'rcvlin'
+    |
+    publish data where line_client_in_clause = @client_in_clause
+    |
+    get client in clause for user
+      where usr_id = nvl(@usr_id, @@usr_id)
+        and table_prefix = 'rcvlin'
+        and prt_client_id_flg = 1
+    |
+    /*
+     * The select below returns a summarized view of each receive line if
+     * there are discrepancies on the line. All quantities are summaried to
+     * the line level and if there are multiple attributes on the line, we
+     * will return multiple instead of choosing just one of them.
+     */
+    get mls text
+        where mls_id = 'lblMultiple'
+          and locale_id = nvl(@locale_id, @@locale_id)
+    |
+    publish data where mlsMultiple = nvl(@mls_text, '**Multiple**')
+    |
+    [select case when(sum(nvl(dmg.rcvqty,0)) > 0) then 'D'
+             when(sum(nvl(rcvlin.expqty,0)) < sum(nvl(rcvlin.rcvqty,0))
+               or(sum(nvl(rcvlin.exp_catch_qty,0.0)) < sum(nvl(rcvlin.rcv_catch_qty,0.0)))) then 'O'
+             when(sum(nvl(rcvlin.expqty,0)) > sum(nvl(rcvlin.rcvqty,0))
+               or(sum(nvl(rcvlin.exp_catch_qty,0.0)) > sum(nvl(rcvlin.rcv_catch_qty,0.0)))) then 'S'
+             end rcvdiscrptyp,
+            case when (sum(nvl(rcvlin.expqty,0)) < sum(nvl(rcvlin.rcvqty,0)))
+                 then  sum(nvl(rcvlin.rcvqty,0)) - sum(nvl(rcvlin.expqty,0))
+                 else 0
+                 end overqty,
+            case when (sum(nvl(rcvlin.expqty,0)) > sum(nvl(rcvlin.rcvqty,0)))
+                 then  sum(nvl(rcvlin.expqty,0)) - sum(nvl(rcvlin.rcvqty,0))
+                 else 0
+                 end shortqty,
+            max(nvl(inv.asnflg,0)) asnflg,
+            rcvinv.trknum,
+            rcvinv.client_id,
+            rcvinv.invnum,
+            rcvinv.supnum,
+            rcvinv.invdte,
+            rcvinv.doc_num,
+            rcvinv.invtyp,
+            rcvinv.wh_id,
+            prtmst_view.prtnum,
+            prtmst_view.dsp_prtnum,
+            prtmst_view.catch_unttyp,
+            rcvlin.prt_client_id,
+            rcvlin.invlin,
+            rcvlin.invsln,
+            /* UNI-930: Katta, Dayakar: 29-Oct-2020
+             * unilever will usually receive the invoice lines with status other than actual
+             * Instead of direct selecting the rcvsts, change it to retrieve the actual status when only one identified as received
+             * or else show Multiple for status
+             */
+            decode(count(distinct rcvlin.rcvsts), 1, max(rcvlin.rcvsts), @mlsMultiple) rcvsts,
+            decode(count(distinct rcvlin.rcvkey),
+                   1, max(rcvlin.rcvkey),
+                   @mlsMultiple) rcvkey,
+            decode(count(distinct rcvlin.orgcod),
+                   1, max(rcvlin.orgcod),
+                   @mlsMultiple) orgcod,
+            decode(count(distinct rcvlin.revlvl),
+                   1, max(rcvlin.revlvl),
+                   @mlsMultiple) revlvl,
+            decode(count(distinct rcvlin.lotnum),
+                   1, max(rcvlin.lotnum),
+                   @mlsMultiple) lotnum,
+            decode(count(distinct rcvlin.sup_lotnum),
+                   0, NULL, 1, max(rcvlin.sup_lotnum),
+                   @mlsMultiple) sup_lotnum,
+            sum(nvl(rcvlin.expqty,0)) expqty,
+            sum(nvl(rcvlin.idnqty,0)) idnqty,
+            sum(nvl(rcvlin.rcvqty,0)) rcvqty,
+            sum(nvl(rcvlin.exp_catch_qty,0.0)) exp_catch_qty,
+            sum(nvl(rcvlin.idn_catch_qty,0.0)) idn_catch_qty,
+            sum(nvl(rcvlin.rcv_catch_qty,0.0)) rcv_catch_qty,
+            trlr.trlr_num,
+            trlr.trlr_id,
+            trlr.carcod,
+            carhdr.scacod,
+            sum(nvl(dmg.rcvqty,0)) dmgqty,
+            sum(nvl(dmg.rcv_catch_qty,0.0)) dmg_catch_qty,
+            prtdsc.lngdsc prtdsc
+       from rcvinv
+       join rcvlin
+         on rcvlin.trknum = rcvinv.trknum
+        and rcvlin.client_id = rcvinv.client_id
+        and rcvlin.invnum = rcvinv.invnum
+        and rcvlin.supnum = rcvinv.supnum
+        and rcvlin.wh_id = rcvinv.wh_id
+       left outer join
+            (select *
+               from rcvlin
+              where rcvsts in (select rtstr1
+                                 from poldat
+                                where polcod = 'RCVTRKOPR'
+                                  and polvar = 'MISCELLANEOUS'
+                                  and polval = 'DAMAGED-STATUS')) dmg
+         on dmg.rcvkey = rcvlin.rcvkey
+       join prtmst_view
+         on prtmst_view.prtnum = rcvlin.prtnum
+        and prtmst_view.prt_client_id = rcvlin.prt_client_id
+        and prtmst_view.wh_id = rcvlin.wh_id
+       left outer join prtdsc
+         on prtdsc.colnam='prtnum|prt_client_id|wh_id_tmpl'
+        and prtdsc.colval=/*=varchar(*/nvl(prtmst_view.prtnum,rtrim(' '))||'|'||nvl(prtmst_view.prt_client_id,rtrim(' ')) ||'|'||nvl(prtmst_view.wh_id_tmpl,rtrim(' '))/*=)*/
+        and prtdsc.locale_id = nvl(@locale_id, @@locale_id)
+       join rcvtrk
+         on rcvtrk.trknum = rcvinv.trknum
+        and rcvtrk.wh_id = rcvinv.wh_id
+       left outer join trlr
+         on rcvtrk.trlr_id = trlr.trlr_id
+       left outer join carhdr
+         on carhdr.carcod = trlr.carcod
+       left outer join
+            (select max(asnflg) asnflg,
+                    rcvlin.rcvkey
+               from rcvlin,
+                    invdtl
+              where rcvlin.rcvkey = invdtl.rcvkey
+              group by rcvlin.rcvkey) inv
+         on inv.rcvkey = rcvlin.rcvkey
+      where @+rcvinv.trknum
+        and @+rcvinv.wh_id
+        and @+rcvinv.client_id
+        and @+rcvinv.invnum
+        and @+rcvinv.supnum
+        and @+rcvinv.moddte:date
+        and @+rcvinv.mod_usr_id
+        and @+rcvlin.rcvkey
+        and @+rcvlin.prtnum
+        and @+rcvlin.rcvsts
+        and @+rcvlin.prt_client_id
+        and @+rcvtrk.crncy_code
+        and @+trlr.trlr_num
+        and @+trlr.trlr_id
+        and @+trlr.carcod
+        and @line_client_in_clause:raw
+        and @client_in_clause:raw
+        and @*
+      group by
+            rcvinv.wh_id,
+            rcvinv.client_id,
+            rcvinv.trknum,
+            rcvinv.invnum,
+            rcvinv.supnum,
+            rcvinv.invdte,
+            rcvinv.doc_num,
+            rcvinv.invtyp,
+            rcvlin.prt_client_id,
+            rcvlin.invlin,
+            rcvlin.invsln,
+           /* UNI-930 - START: Katta, Dayakar: 29-Oct-2020
+            * remove the group by rcvsts clause since unilever will usually receive the invoice lines with status other than actual
+            * rcvlin.rcvsts,
+            * UNI-930 - STOP: Katta, Dayakar: 29-Oct-2020
+            */
+            prtmst_view.prtnum,
+            prtmst_view.dsp_prtnum,
+            prtmst_view.catch_unttyp,
+            trlr.trlr_num,
+            trlr.trlr_id,
+            trlr.carcod,
+            carhdr.scacod,
+            prtdsc.lngdsc
+     having (sum(nvl(rcvlin.expqty,0)) != sum(nvl(rcvlin.rcvqty,0))
+              or sum(nvl(dmg.rcvqty,0)) > 0
+              or sum(nvl(rcvlin.exp_catch_qty,0)) - sum(nvl(rcvlin.rcv_catch_qty,0))  > 0.00001
+              or sum(nvl(rcvlin.exp_catch_qty,0)) - sum(nvl(rcvlin.rcv_catch_qty,0))  < -0.00001)
+      order by
+            rcvinv.wh_id,
+            rcvinv.client_id,
+            rcvinv.trknum,
+            rcvinv.invnum,
+            rcvinv.supnum,
+            rcvlin.invlin,
+            prtmst_view.prtnum,
+            prtmst_view.dsp_prtnum]
+
+]]>
+</local-syntax>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+   This command is used to display all the discrepancy receipt lines that exist
+   at receiving inventory which can be short, over and damaged lines.
+  </p>
+]]>
+</remarks>
+
+<retcol name="trknum" type="COMTYP_CHAR">Truck Number</retcol>
+<retcol name="client_id" type="COMTYP_CHAR">Client ID</retcol>
+<retcol name="invnum" type="COMTYP_CHAR">Invoice Number</retcol>
+<retcol name="supnum" type="COMTYP_CHAR">Supplier Number</retcol>
+<retcol name="wh_id"  type="COMTYP_CHAR">Warehouse Id</retcol>
+<retcol name="prtnum" type="COMTYP_CHAR">Part Number</retcol>
+<retcol name="prt_client_id" type="COMTYP_CHAR">Part Client ID</retcol>
+<retcol name="prtnum_dsc" type="COMTYP_CHAR">Part Number Description</retcol>
+<retcol name="lotnum" type="COMTYP_CHAR">Lot Number</retcol>
+<retcol name="sup_lotnum" type="COMTYP_CHAR">Supplier Lot Number</retcol>
+<retcol name="revlvl" type="COMTYP_CHAR">Revision Level</retcol>
+<retcol name="orgcod" type="COMTYP_CHAR">Origin Code</retcol>
+<retcol name="cstms_cnsgnmnt_id" type="COMTYP_STRING">Customs Consignment ID</retcol>
+<retcol name="expqty" type="COMTYP_INT">Expected Quantity.  This is the total calculated expected quantity for this part/part attribute.</retcol>
+<retcol name="idnqty" type="COMTYP_INT">Identified Quantity.  This is the total calculated identified quantity for this part/part attribute.</retcol>
+<retcol name="rcvqty" type="COMTYP_INT">Receive Quantity.  This is the total calculated received quantity for this part/part attribute.</retcol>
+<retcol name="trlr_id" type="COMTYP_CHAR">Trailer Number</retcol>
+<retcol name="carcod" type="COMTYP_CHAR">Carrier Code.</retcol>
+<retcol name="rcvsts" type="COMTYP_CHAR">Receipt Status.</retcol>
+<retcol name="invlin" type="COMTYP_CHAR">Line Number.</retcol>
+<retcol name="invsln" type="COMTYP_CHAR">Subline Number.</retcol>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">No data found for a given truck</exception>
+
+</documentation>
+
+</command>

@@ -1,0 +1,94 @@
+<command>
+  <name>list usr yard location</name>
+  <description>list USR yard location</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'temp.carcod, temp.trlr_num')
+|
+[/*#limit=@offset,@limit,true*/
+  select temp.carcod,
+        temp.trlr_num,
+        temp.trlr_id,
+        temp.trlr_typ,
+        temp.driver_nam,
+        temp.yard_loc,
+        temp.trlr_cod,
+        temp.arrdte,
+        temp.vc_trlr_ref,
+        temp.status,
+        temp.notes,
+        temp.trknum,
+        temp.clsdte,
+        temp.master_shipment
+   from (select DISTINCT trlr.carcod,
+        trlr.trlr_num,
+        trlr.trlr_id,
+		dscmst.lngdsc trlr_typ,
+        trlr.driver_nam,
+        trlr.yard_loc,
+		dscmst2.lngdsc trlr_cod,
+        trlr.arrdte,
+        trlr.vc_trlr_ref,
+        (case when trlr_cod = 'SHIP' and trlr_stat = 'CI' then 'Empty'
+              when trlr_cod = 'SHIP' and trlr_stat = 'LDG' then 'Partial'
+              when trlr_cod = 'SHIP' and trlr_stat = 'L' then 'Full'
+              when trlr_cod = 'SHIP' and trlr_stat = 'O' then 'Empty'
+              when trlr_cod = 'SHIP' and trlr_stat = 'P' then 'Full'
+              when trlr_cod = 'SHIP' and trlr_stat = 'SUSP' then 'Partial'
+              when trlr_cod = 'SHIP' and trlr_stat = 'C' then 'Full'
+              when trlr_cod = 'RCV' and trlr_stat = 'CI' then 'Full'
+              when trlr_cod = 'RCV' and trlr_stat = 'OR' then 'Full'
+              when trlr_cod = 'RCV' and trlr_stat = 'R' then 'Partial'
+              when trlr_cod = 'RCV' and trlr_stat = 'SUSP' then 'Partial'
+              when trlr_cod = 'RCV' and trlr_stat = 'C' then 'Empty'
+              when trlr_cod = 'STO' and trlr_stat = 'CI' then 'Empty'
+              when trlr_cod = 'STO' and trlr_stat = 'LDG' then 'Partial'
+              when trlr_cod = 'STO' and trlr_stat = 'L' then 'Full'
+              when trlr_cod = 'STO' and trlr_stat = 'SUSP' then 'Partial'
+              when trlr_cod = 'STO' and trlr_stat = 'C' then 'Full'
+              when trlr_cod = 'STO' and trlr_stat = 'OLDG' then 'Empty'
+              else 'Unknown'
+         end) status,
+        (select string_agg(rtrim(trlr_note.nottxt), ';') within group(order by trlr_note.notlin desc)
+           from trlr_note
+          where trlr_note.trlr_id = trlr.trlr_id) notes,
+        rcvtrk.trknum,
+        rcvtrk.clsdte,
+        car_move.car_move_id master_shipment
+   from trlr
+   left
+   join rcvtrk
+     on trlr.trlr_id = rcvtrk.trlr_id
+   left
+   join car_move
+     on trlr.trlr_id = car_move.trlr_id
+   left
+   join dscmst
+     on trlr.trlr_typ = dscmst.colval
+    and dscmst.colnam = 'trlr_typ'
+   left
+   join dscmst dscmst2
+     on trlr.trlr_cod = dscmst2.colval
+    and dscmst2.colnam = 'trlr_cod'
+  where trlr.stoloc_wh_id = nvl(@wh_id, @@wh_id)
+    and @+trlr.vc_trlr_ref
+    and trlr_stat != 'EX'
+    and trlr_stat != 'D') temp
+  where @filterByClause:raw
+  order by @sortOrderClause:raw]
+]]>
+</local-syntax>
+  <argument name="wh_id" datatype="string">Warehouse ID</argument>
+  <argument name="vc_trlr_ref" datatype="string">Transport Equipment Reference</argument>
+  <documentation>
+<remarks></remarks>
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

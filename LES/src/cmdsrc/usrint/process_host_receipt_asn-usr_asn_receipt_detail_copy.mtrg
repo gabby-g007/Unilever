@@ -1,0 +1,46 @@
+<trigger>
+  <name>usr_asn_receipt_detail_copy</name>
+  <on-command>process host receipt asn</on-command>
+  <description />
+  <fire-sequence>999</fire-sequence>
+  <local-syntax>
+<![CDATA[
+[select rl.rcvkey,
+        iv.stoloc,
+        rl.supnum,
+        rl.wh_id,
+        rl.client_id,
+        rl.invnum,
+        rl.seqnum,
+        rl.prtnum,
+        iv.invsts,
+        rl.orgcod,
+        rl.revlvl,
+        iv.lotnum,
+        rl.sup_lotnum,
+        iv.lodnum,
+        iv.subnum,
+        iv.asnflg,
+        iv.dtlnum,
+        iv.untqty
+   from rcvlin rl
+   join inventory_view iv
+     on iv.rcvkey = rl.rcvkey
+    and iv.wh_id = rl.wh_id
+    and iv.wh_id = nvl(@wh_id, @@wh_id)
+  where rl.trknum = @trknum] catch(@?)
+|
+[select distinct 1
+   from uc_exp_rcpt_inventory
+  where lodnum = @lodnum] catch(@?)
+|
+if (@? != 0)
+{
+    [insert
+       into uc_exp_rcpt_inventory(rcvkey, trknum, supnum, wh_id, client_id, invnum, invtyp, seqnum, prtnum, invsts, orgcod, revlvl, lotnum, sup_lotnum, lodnum, subnum, asnflg, dtlnum, trnqty)
+     values (@rcvkey, @stoloc, @supnum, @wh_id, @client_id, @invnum, '', @seqnum, @prtnum, @invsts, @orgcod, @revlvl, @lotnum, @sup_lotnum, @lodnum, @subnum, @asnflg, @dtlnum, @untqty)] catch(@?)
+}
+]]>
+</local-syntax>
+  <enable>yes</enable>
+</trigger>

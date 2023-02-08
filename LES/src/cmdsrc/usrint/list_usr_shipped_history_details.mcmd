@@ -1,0 +1,268 @@
+<command>
+<name>list usr shipped history details</name>
+<description>List USR Shipped History details</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and usr_id = nvl(@usr_id, @@usr_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'temp.ordnum, temp.ordtyp, temp.ordlin, temp.prtnum, temp.lotnum, temp.lodnum, temp.subnum')
+|
+get client in clause for user
+ where usr_id = @usr_id
+   and table_prefix = 'o'
+|
+if (@vc_trlr_id != '')
+{
+    publish data
+     where trlr_id = @vc_trlr_id
+}
+|
+[/*#limit=@offset,@limit,true*/
+ select temp.car_move_id,
+        temp.ship_id,
+        temp.trlr_num,
+        temp.trlr_id,
+        temp.vc_trlr_ref,
+        temp.ordtyp,
+        temp.ord_typ_dsc,
+        temp.untqty,
+        temp.ordnum,
+        temp.ordlin,
+        temp.prtnum,
+        temp.prtdsc,
+        temp.lotnum,
+        temp.lodnum,
+        temp.invsts,
+        temp.invsts_dsc,
+        temp.subnum,
+        temp.asset_typ,
+        temp.weight,
+        temp.dispatch_dte,
+        temp.mandte
+   from (select cm.car_move_id,
+                sh.ship_id ship_id,
+                tl.trlr_num trlr_num,
+                tl.trlr_id trlr_id,
+                tl.vc_trlr_ref vc_trlr_ref,
+                o.ordtyp ordtyp,
+                nvl(dso.short_dsc, dso.lngdsc) ord_typ_dsc,
+                sum(ivd.untqty) untqty,
+                o.ordnum ordnum,
+                ol.ordlin ordlin,
+                tl.dispatch_dte dispatch_dte,
+                pm.dsp_prtnum prtnum,
+                pd.lngdsc prtdsc,
+                ivd.lotnum lotnum,
+                ivs.lodnum lodnum,
+                ivd.invsts invsts,
+                nvl(di.lngdsc, di.short_dsc) invsts_dsc,
+                ivs.subnum subnum,
+                ivl.asset_typ asset_typ,
+                ivd.mandte mandte,
+                o.stcust,
+                (sum(ivd.untqty) * pfd.grswgt) * 0.0625 weight
+           from prtmst_view pm,
+                invdtl_hist ivd,
+                invsub_hist ivs
+           left outer
+           join manfst
+             on (ivs.subnum = manfst.subnum or ivs.wrkref = manfst.wrkref or manfst.wrkref in (select wrkref
+                                                                                                 from pckwrk_view
+                                                                                                where wrktyp = 'K'
+                                                                                                  and subnum = ivs.subnum) or ivs.lodnum = manfst.lodnum),
+                shipment_line sl,
+                shipment sh,
+                stop st,
+                car_move cm,
+                trlr tl,
+                prtdsc pd,
+                ord o,
+                ord_line ol,
+                dscmst di,
+                dscmst dso,
+                prtftp_dtl pfd,
+                invlod_hist ivl
+          where ivl.lodnum = ivs.lodnum
+            and ivd.subnum = ivs.subnum
+            and ivd.ship_line_id = sl.ship_line_id
+            and sl.ship_id = sh.ship_id
+            and sh.stop_id = st.stop_id
+            and st.car_move_id = cm.car_move_id
+            and cm.trlr_id = tl.trlr_id
+            and sl.ordnum = ol.ordnum
+            and sl.client_id = ol.client_id
+            and sl.ordlin = ol.ordlin
+            and sl.ordsln = ol.ordsln
+            and sl.wh_id = ol.wh_id
+            and o.ordnum = ol.ordnum
+            and o.client_id = ol.client_id
+            and o.wh_id = ol.wh_id
+            and tl.dispatch_dte is not null
+            and di.colnam = 'invsts'
+            and di.colval = ivd.invsts
+            and di.locale_id = nvl(@locale_id, @@locale_id)
+            and dso.colnam = 'ordtyp|wh_id'
+            and dso.colval = /*=varchar(*/ o.ordtyp || '|' || ol.wh_id /*=)*/
+            and dso.locale_id = nvl(@locale_id, @@locale_id)
+            and pd.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+            and pd.colval = /*=varchar(*/ ivd.prtnum || '|' || ivd.prt_client_id || '|' || ol.wh_id /*=)*/
+            and pd.locale_id = nvl(@locale_id, @@locale_id)
+            and pm.prtnum = ol.prtnum
+            and pm.prt_client_id = ol.prt_client_id
+            and pm.wh_id = ol.wh_id
+            and pm.prtnum = pfd.prtnum
+            and pm.prt_client_id = pfd.prt_client_id
+            and pm.wh_id = pfd.wh_id
+            and pfd.uomcod = 'CS'
+            and ivd.ftpcod = pfd.ftpcod
+            and ol.wh_id = nvl(@wh_id, @@wh_id)
+            and @client_in_clause:raw
+          group by cm.car_move_id,
+                sh.ship_id,
+                tl.trlr_num,
+                tl.trlr_id,
+                tl.vc_trlr_ref,
+                o.ordtyp,
+                nvl(dso.short_dsc, dso.lngdsc),
+                o.ordnum,
+                ol.ordlin,
+                tl.dispatch_dte,
+                pm.dsp_prtnum,
+                pd.lngdsc,
+                ivd.lotnum,
+                ivs.lodnum,
+                ivd.invsts,
+                nvl(di.lngdsc, di.short_dsc),
+                ivs.subnum,
+                ivl.asset_typ,
+                ivd.mandte,
+                o.stcust,
+                pfd.grswgt
+                /* if inventory are intransit,all inventory information
+                 * has been moved into inv_intransit after trailer dispatched,
+                 * so we union those inventory.
+                 */
+         union
+         select cm.car_move_id,
+                sh.ship_id ship_id,
+                tl.trlr_num trlr_num,
+                tl.trlr_id trlr_id,
+                tl.vc_trlr_ref vc_trlr_ref,
+                o.ordtyp ordtyp,
+                nvl(dso.short_dsc, dso.lngdsc) ord_typ_dsc,
+                sum(ii.untqty) untqty,
+                o.ordnum ordnum,
+                ol.ordlin ordlin,
+                tl.dispatch_dte dispatch_dte,
+                pm.dsp_prtnum prtnum,
+                pd.lngdsc prtdsc,
+                ii.lotnum lotnum,
+                ii.lodnum lodnum,
+                ii.invsts invsts,
+                nvl(di.lngdsc, di.short_dsc) invsts_dsc,
+                ii.subnum subnum,
+                '' asset_typ,
+                ii.mandte mandte,
+                o.stcust,
+                (sum(ii.untqty) * pfd.grswgt) * 0.0625 weight
+           from inv_intransit ii
+           left outer
+           join manfst
+             on (ii.subnum = manfst.subnum or manfst.wrkref in (select wrkref
+                                                                  from pckwrk_view
+                                                                 where wrktyp = 'K'
+                                                                   and subnum = ii.subnum) or ii.lodnum = manfst.lodnum),
+                shipment_line sl,
+                shipment sh,
+                stop st,
+                car_move cm,
+                trlr tl,
+                prtdsc pd,
+                ord o,
+                ord_line ol,
+                dscmst di,
+                dscmst dso,
+                prtmst_view pm,
+                prtftp_dtl pfd
+          where ii.ship_line_id = sl.ship_line_id
+            and sl.ship_id = sh.ship_id
+            and sh.stop_id = st.stop_id
+            and st.car_move_id = cm.car_move_id
+            and cm.trlr_id = tl.trlr_id
+            and sl.ordnum = ol.ordnum
+            and sl.client_id = ol.client_id
+            and sl.ordlin = ol.ordlin
+            and sl.ordsln = ol.ordsln
+            and sl.wh_id = ol.wh_id
+            and o.ordnum = ol.ordnum
+            and o.client_id = ol.client_id
+            and o.wh_id = ol.wh_id
+            and tl.dispatch_dte is not null
+            and di.colnam = 'invsts'
+            and di.colval = ii.invsts
+            and di.locale_id = nvl(@locale_id, @@locale_id)
+            and dso.colnam = 'ordtyp|wh_id'
+            and dso.colval = /*=varchar(*/ o.ordtyp || '|' || ol.wh_id /*=)*/
+            and dso.locale_id = nvl(@locale_id, @@locale_id)
+            and pd.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+            and pd.colval = /*=varchar(*/ ii.prtnum || '|' || ii.prt_client_id || '|' || ol.wh_id /*=)*/
+            and pd.locale_id = nvl(@locale_id, @@locale_id)
+            and pm.prtnum = ol.prtnum
+            and pm.prt_client_id = ol.prt_client_id
+            and pm.wh_id = ol.wh_id
+            and pm.prtnum = pfd.prtnum
+            and pm.prt_client_id = pfd.prt_client_id
+            and pm.wh_id = pfd.wh_id
+            and pfd.uomcod = 'CS'
+            and ii.ftpcod = pfd.ftpcod
+            and ol.wh_id = nvl(@wh_id, @@wh_id)
+            and @client_in_clause:raw
+          group by cm.car_move_id,
+                sh.ship_id,
+                tl.trlr_num,
+                tl.trlr_id,
+                tl.vc_trlr_ref,
+                o.ordtyp,
+                nvl(dso.short_dsc, dso.lngdsc),
+                o.ordnum,
+                ol.ordlin,
+                tl.dispatch_dte,
+                pm.dsp_prtnum,
+                pd.lngdsc,
+                ii.lotnum,
+                ii.lodnum,
+                ii.invsts,
+                nvl(di.lngdsc, di.short_dsc),
+                ii.subnum,
+                ii.mandte,
+                o.stcust,
+                pfd.grswgt) temp
+  where @filterByClause:raw
+  order by @sortOrderClause:raw]
+  
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list the shipped inventory history.
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

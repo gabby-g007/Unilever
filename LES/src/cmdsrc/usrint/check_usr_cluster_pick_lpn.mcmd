@@ -1,0 +1,48 @@
+<command>
+  <name>check usr cluster pick lpn</name>
+  <description>check usr cluster pick lpn</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+/* This is required to clear Parent-child association of lpn when lpn gets deposited to PD location otherwise System throws ERROR 0 upon deposit if not cleared*/
+[select lodnum
+   from inventory_view
+  where stoloc = @devcod
+    and rownum < 2] catch(@?)
+|
+if (@? = 0)
+{
+    [select lodnum master_lpn,
+            slot_lodnum,
+            length(slot_lodnum) live_lpn
+       from pcklst_slot_load
+      where (lodnum = @lodnum or slot_lodnum = @lodnum)
+        and rownum < 2] catch(@?)
+    |
+    if (@? = 0 and @live_lpn = 20)
+    {
+        [select 'x'
+           from pckwrk_view
+          where pckwrk_view.pck_to_id = @slot_lodnum
+            and pckwrk_view.asset_slot is not null
+			and rownum < 2
+         /* and not exists(select 'x'
+            from pckwrk_view pv1
+            where pv1.list_id = pckwrk_view.list_id
+            and pv1.pckqty <> pv1.appqty) */] catch(@?)
+        |
+        if (@? = 0)
+        {
+            [delete
+               from pcklst_slot_load
+              where lodnum = @master_lpn] catch(@?)
+            |
+            [delete
+               from invlod
+              where lodnum = @master_lpn] catch(@?)
+        }
+    }
+}
+]]>
+</local-syntax>
+</command>

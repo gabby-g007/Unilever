@@ -1,0 +1,49 @@
+<command>
+<name>list picks</name>
+<description>list picks</description>
+<type>Local Syntax</type>
+
+<local-syntax>
+<![CDATA[
+/* UNI-1059: UNI-1402: This command is used to fetch the attention code value based on schedule batch*/
+/* UNI-1285: This command is used to fetch the appointment start date value based on schedule batch*/
+^list picks >> res
+|
+if (rowcount(@res) > 0)
+{
+  publish data combination
+     where res = @res
+  |
+  if (@list_identifier)
+  {
+    [select asset_slot || decode(asset_slot,'A','=>','B','=>','') || @description as description1
+         from pckwrk_view
+        where wrkref = @wrkref] catch(@?)
+    |
+    publish data
+     where description = @description1	
+    |
+    filter data
+     where moca_filter_level = '4'
+       and description = @description
+  }
+}
+]]>
+</local-syntax>
+
+<argument name="@*">Any wrkque field value</argument>
+
+<documentation>
+<remarks>
+<![CDATA[
+    <p>
+    This wrapper command is used to list the picks along with attention code for the waves and picks screen.
+    </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified work not found</exception>
+
+</documentation>
+</command>

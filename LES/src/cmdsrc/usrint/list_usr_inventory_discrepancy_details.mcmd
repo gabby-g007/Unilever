@@ -1,0 +1,156 @@
+<command>
+
+<name>list USR inventory discrepancy details</name>
+
+<description>List USR Inventory details for receiving discrepancies</description>
+
+<type>Local Syntax</type>
+
+<local-syntax>
+<![CDATA[
+    /*
+     * UNI-930: Katta, Dayakar: 29-Oct-2020
+     * This command was modified to list all the inventory identified/received against the current inbound shipment
+     * No matter where it is.
+     */
+    /* If rcvkey is multiple the get all the 
+     * attribute information based on the rcvlin.
+     */
+    if(@rcvkey = '**Multiple**' )
+    {
+        [select rcvkey,
+                lotnum,
+                rcvsts,
+                orgcod,
+                revlvl
+           from rcvlin
+          where invlin = @invlin
+            and trknum = @stoloc]
+    }
+    |
+    [select aremst.arecod,
+            locmst.stoloc,
+            invdtl.prtnum,
+            invlod.lodnum,
+            invlod.asset_typ,
+            invlod.lodtag,
+            invsub.subnum,
+            invsub.subtag,
+            invdtl.dtlnum,
+            invdtl.prt_client_id,
+            prtdsc.lngdsc,
+            invdtl.orgcod,
+            invdtl.lotnum,
+            invdtl.sup_lotnum,
+            invdtl.supnum,
+            invdtl.invsts,
+            invdtl.untpak,
+            invdtl.untcas,
+            invdtl.untqty,
+            invdtl.catch_qty,
+            invdtl.ftpcod,
+            invdtl.rcvkey,
+            prtmst_view.stkuom,
+            prtmst_view.lodlvl,
+            invdtl.fifdte,
+            invlod.adddte,
+            invdtl.rcvdte
+       from bldg_mst,
+            prtmst_view,
+            prtdsc,
+            aremst,
+            locmst,
+            invdtl,
+            invsub,
+            invlod
+      where aremst.arecod = locmst.arecod
+        and aremst.wh_id  = locmst.wh_id
+        and aremst.bldg_id = bldg_mst.bldg_id
+        and aremst.wh_id    = bldg_mst.wh_id
+        and locmst.stoloc = invlod.stoloc
+        and locmst.wh_id  = invlod.wh_id
+        and invlod.lodnum = invsub.lodnum
+        and invsub.subnum = invdtl.subnum
+        and invdtl.prtnum = prtmst_view.prtnum
+        and locmst.wh_id = prtmst_view.wh_id
+        and prtdsc.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+        and prtdsc.colval = /*=varchar(*/prtmst_view.prtnum||'|'||prtmst_view.prt_client_id||'|'||prtmst_view.wh_id_tmpl /*=)*/
+        and prtdsc.locale_id = nvl(@locale_id, @@locale_id)
+        and invdtl.prt_client_id = prtmst_view.prt_client_id
+        /* modified to select by prtnum ! = RETURN PART rather
+         * the earlier hardcoded invsts - which is configurable
+         * where as 'RETURNPART' is an internal constant
+         */
+        and invdtl.prtnum != 'RETURNPART'
+        and @+invdtl.prtnum
+        and @+invdtl.prt_client_id
+        and @+aremst.arecod
+        /* UNI-930 - START: Katta, Dayakar: 29-Oct-2020
+         * Comment the following line, since it was preventing the receiving operations --> Complete Receiving  --> (Tab) Inventory to display correctly  when the inventory was outside the trailer
+         * and @+locmst.stoloc
+         * UNI-930 - END: Katta, Dayakar: 29-Oct-2020
+         */
+        and @+locmst.wh_id
+        and @+invlod.lodnum
+        and @+invsub.subnum
+        and @+invdtl.dtlnum
+        and @+invdtl.rcvkey
+        and @+aremst.wh_id
+        /* UNI-930 - START: Katta, Dayakar: 29-Oct-2020
+         * Comment the following line, since it was preventing the receiving operations --> Complete Receiving  --> (Tab) Inventory to display correctly  when the inventory was outside the trailer
+         * and @+invlod.stoloc
+         * UNI-930 - END: Katta, Dayakar: 29-Oct-2020
+         */
+        and @+locmst.cntdte:date
+        and @+locmst.lstdte:date
+        and @+invdtl.fifdte:date
+        and @+invdtl.mandte:date
+        and @+invdtl.adddte:date
+        and @+invdtl.lstdte:date
+        and @+invdtl.inv_attr_dte1:date
+        and @+invdtl.inv_attr_dte2:date
+        and @+invsub.adddte:date
+        and @+invsub.lstdte:date
+        and @+invsub.uccdte:date
+        and @+invlod.adddte:date
+        and @+invlod.lstdte:date
+        and @+invlod.uccdte:date
+        and @+invdtl.age_pflnam
+        and @+invdtl.ftpcod
+        and @+locmst.velzon
+        and @+locmst.abccod
+        and @+aremst.bldg_id
+        and @+invlod.asset_typ
+        and @+invsub.asset_typ^sub_asset_typ
+        and @+asnflg
+   order by invlod.lodnum,
+            invsub.subnum,
+            invdtl.dtlnum] catch(-1403)
+
+]]>
+</local-syntax>
+
+<argument name="@*">Any invdtl, invlod, invsub field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command is used to list the inventory information details for discrepancies. </p>
+
+  <p>
+  The results of this command include the inventory load, sub,
+  and detail names and its attributes.  
+  </p>
+]]>
+</remarks>
+
+<retcol name="(all invdtl fields)" type="(varies according to field type)"> </retcol>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified pick batch not found</exception>
+
+</documentation>
+
+</command>

@@ -1,0 +1,14 @@
+<command>
+  <name>create trailer</name>
+  <description>Create Trailer</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+validate usr equipment size
+ where trlr_size = @trlr_size
+   and wh_id = nvl(@wh_id, @@wh_id)
+|
+^create trailer
+]]>
+</local-syntax>
+</command>

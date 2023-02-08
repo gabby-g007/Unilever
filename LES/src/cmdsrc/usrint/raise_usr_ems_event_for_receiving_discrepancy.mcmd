@@ -1,0 +1,87 @@
+<command>
+  <name>raise usr ems event for receiving discrepancy</name>
+  <description>raise usr ems event for receiving discrepancy</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+[select distinct wh_id,
+        supnum,
+        trknum,
+        to_char(sysdate, 'YYYYMMDD') rcvdte
+   From rcvlin
+  where trknum = @trknum] catch(@?)
+|
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    publish data
+     where evt_msg = "Please check the attached File for Receiving Discrepancy of Order Note @trknum in Warehouse @wh_id:
+   Supplier	:   @supnum
+   Receive Date	:   @rcvdte
+   
+   Please check the attached file for further details"
+       and evt_subj = "@wh_id Warehouse Receiving Discrepancy Report of Order Note:@trknum"
+       and evt_qual = "wh_id,supnum,rcvdte,trknum"
+       and evt_grp = 'RECEIVING'
+       and evt_pri = '1'
+       and evt_nam = @evt_nam
+       and src_sys = @src_sys
+       and lngdsc = 'Warehouse Receiving Discrepancy Report'
+}
+else
+{
+    get ems event information
+     where evt_nam = 'UC-WH-RCV-DISCREPANCY'
+    |
+    if (@enabled = 1)
+    {
+        usr enroute receiving discrepancies
+         where trknum = @trknum
+           and discrepancy = '1' >> res
+        |
+        if (rowcount(@res) > 0)
+        {
+            [select to_char(sysdate, 'YYYYMMDD') fildte
+               from dual]
+            |
+            expand environment variable
+             where variable = '$LESDIR'
+            |
+            [select 'DiscrepancyRpt-' || @trknum || '.csv' filnam,
+                    replace(@value, 'les', 'LES') || '\files\emsout\' filepath
+               from dual]
+            |
+            write usr csv file for enroute report
+             where resdata = @res
+               and filnam = @filnam
+               and path = @filepath
+            |
+            go to sleep
+             where sleeptime = 2
+            |
+            get server information
+            |
+            list warehouses
+             where wh_id [not in ('WMD1' ,'----' )]
+            |
+            log ems event
+             where evt_nam = 'UC-WH-RCV-DISCREPANCY'
+               and key_val = @wh_id || ' - ' || @supnum || ' - ' || @rcvdte || ' - ' || @trknum
+               and wh_id = @wh_id
+               and supnum = @supnum
+               and rcvdte = @rcvdte
+               and trknum = @trknum
+               and src_sys = @src_sys
+               and in_trans = 0
+               and locale_id = 'US_ENGLISH'
+               and att_app_srv = @url
+               and lngdsc = @lngdsc
+               and att_file = @filnam
+               and att_path = @filepath || @filnam
+        }
+    }
+}
+]]>
+</local-syntax>
+</command>

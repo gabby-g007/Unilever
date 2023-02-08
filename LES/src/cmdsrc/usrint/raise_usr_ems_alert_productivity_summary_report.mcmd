@@ -1,0 +1,109 @@
+<command>
+  <name>raise usr ems alert productivity summary report</name>
+  <description>raise usr ems alert productivity summary report</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    list policies
+     where polcod = 'EMS'
+       and polvar = 'MISCELLANEOUS'
+       and polval = 'SOURCE-SYSTEM'
+       and srtseq = 0 catch(510, -1403)
+    |
+    /* We must prime the event definition */
+    publish data
+     where evt_msg = "Please find attached Productivity Summary Report"
+       and evt_subj = "Productivity Summary Report"
+       and evt_grp = 'SAL'
+       and evt_pri = '3'
+       and evt_nam = 'USR-PROD-SUMMARY-REPORT'
+       and src_sys = @src_sys
+}
+else
+{
+    {   /* Report will run on friday and data will be sent for the previous week Monday to sunday night */ 
+        [select wh_id,
+                to_char(sysdate-4, 'YYYYMMDD') to_date1,
+                to_char(sysdate -11, 'YYYYMMDD') from_date1
+           from wh
+          where wh_id not in ('WMD1', '----')]
+        |
+        list user summary
+         where groupby1 = 'JobCode'
+           and groupby2 = 'UserID'
+           and warehouse_str = 'wh_id in (' || @wh_id || ')'
+           and locale_id = 'US_ENGLISH'
+           and gen_usr_id = 'SUPER'
+           and pi1 = 'DirectHours'
+           and from_date = @from_date1 || '060000'
+           and to_date = @to_date1 || '060000'
+           and ab1 = 'a'
+           and pagebreak2 = 0
+           and pi2 = 'DirectHours'
+        |
+        publish data
+         where date_range = @from_date1 || '060000 - ' || @to_date1 || '060000'
+           and job_code = @mediumlvlgroup
+           and user_id = @detaillvlgroup
+           and perf = @perf
+           and goal = @goal
+           and measured_direct = @measured_direct
+           and paid_break = @pdbrk
+           and total = @total
+           and unpaid_break = @unpdbrk
+           and count = @count
+           and units = @unit
+           and unit_desc = @unit_name
+           and unit_per_hour = @unitsperhour
+           and Target_Perf = (@unitsperhour *100) / decode(@perf, '0', '1', @perf)
+    } >> res
+    |
+    [select wh_id,
+            to_char(sysdate-4, 'YYYYMMDD') fildte
+       from wh
+      where wh_id not in ('WMD1', '----')]
+    |
+    publish data
+     where res = @res
+       and filnam = @wh_id || '-' || @fildte || '.csv'
+    |
+    write csv file
+     where resdata = @res
+       and filnam = @filnam
+       and path = '/data/jda/ULAWMS/les/files/emsrpt'
+    |
+    go to sleep
+     where sleeptime = 5
+    |
+    [select distinct 1
+       from poldat_view
+      where polcod = 'EMS'
+        and polvar = 'EVENTS'
+        and polval = 'USR-PROD-SUMMARY-REPORT'
+        and rtnum1 = 1] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        get server information
+        |
+        get ems source system
+        |
+        log ems event
+         where evt_nam = 'USR-PROD-SUMMARY-REPORT'
+           and src_sys = @src_sys
+           and in_trans = 0
+           and locale_id = 'US_ENGLISH'
+           and att_app_srv = @url
+           and att_file = @filnam
+           and att_path = '/data/jda/ULAWMS/les/files/emsrpt/' || @filnam
+           and key_val = sysdate
+           and @*
+    }
+}
+]]>
+</local-syntax>
+</command>

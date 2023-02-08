@@ -1,0 +1,38 @@
+<command>
+<name>list usr missing conditions</name>
+<description>List items with missing temp and storage conditions data</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+[select prtmst.prtnum prtnum,
+        prtdsc.lngdsc lngdsc,
+        prtmst.wh_id_tmpl wh_id,
+        prtmst.prtfit prtfit,
+        prtmst.prtstyle prtstyle
+   from prtmst,
+        prtdsc
+  where prtdsc.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+    and prtdsc.colval = /*=varchar(*/ prtmst.prtnum || '|' || prtmst.prt_client_id || '|' || prtmst.wh_id_tmpl /*=)*/
+    and prtdsc.locale_id = nvl(@locale_id, @@locale_id)
+    and prtmst.wh_id_tmpl = nvl(@wh_id, @@wh_id)
+    and (prtmst.prtfit is null or prtmst.prtstyle is null)]
+|
+publish data
+ where prtnum = @prtnum
+   and lngdsc = @lngdsc
+   and wh_id = @wh_id
+   and ShipCondition = @prtfit
+   and StorageCondition = @prtstyle	]]>
+</local-syntax>
+<documentation>
+<remarks>
+<![CDATA[
+  <p>
+  This commands will list missing item with Shipping and storage conditions.
+  </p>
+]]>
+</remarks>
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">No picks are found.</exception>
+</documentation>
+</command>

@@ -1,0 +1,3 @@
+colnam,colval,locale_id,lngdsc,short_dsc,grp_nam,dtype
+actcod,CPCK,US_ENGLISH,Cluster Pick,,,
+worktype_id,CPCK,US_ENGLISH,Cluster Pick,,lm_data,

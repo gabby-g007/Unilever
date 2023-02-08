@@ -1,0 +1,164 @@
+<command>
+<name>list usr claw items</name>
+<description>List USR Claw Items</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and sortOrderClause = nvl(@sortOrderClause, 'temp.prtnum')
+   and wh_id = nvl(@wh_id, @@wh_id)
+|
+[select (length(@filterByClause) - length(replace(@filterByClause, 'decode(count(temp.pickface), 1, ''NO'', ''YES'')', ''))) / length('decode(count(temp.pickface), 1, ''NO'', ''YES'')') occurences
+   from dual]
+|
+if (@occurences = 1)
+{
+    [select substr(@filterByClause, CHARINDEX('(decode(count(temp.pickface), 1, ''NO'', ''YES'')', @filterByClause, 0), charindex(''')', @filterByClause, CHARINDEX('(decode(count(temp.pickface), 1, ''NO'', ''YES'')', @filterByClause, 0) + 50) + 2 - decode(CHARINDEX('(decode(count(temp.pickface), 1, ''NO'', ''YES'')', @filterByClause, 0), 0, 2, CHARINDEX('(decode(count(temp.pickface), 1, ''NO'', ''YES'')', @filterByClause, 0))) having_cls1
+       from dual] CATCH(-1403, 510)
+}
+else
+{
+    [select substr(@filterByClause, CHARINDEX('(decode(count(temp.pickface), 1, ''NO'', ''YES'')', @filterByClause, 0), charindex(''')', @filterByClause, CHARINDEX('decode(count(temp.pickface), 1, ''NO'', ''YES'')', @filterByClause, CHARINDEX('(decode(count(temp.pickface), 1, ''NO'', ''YES'')', @filterByClause, 0) + 3) + 50) + 2 - decode(CHARINDEX('decode(count(temp.pickface), 1, ''NO'', ''YES'')', @filterByClause, CHARINDEX('(decode(count(temp.pickface), 1, ''NO'', ''YES'')', @filterByClause, 0)), 0, 2, CHARINDEX('(decode(count(temp.pickface), 1, ''NO'', ''YES'')', @filterByClause, 0))) having_cls1
+       from dual] CATCH(-1403, 510)
+}
+|
+if (@having_cls1 not like '(decode(count(temp.pickface)%')
+{
+    publish data
+     where having_cls1 = null
+       and filterByClause = @filterByClause
+}
+else
+{
+    [select @having_cls1 having_cls,
+            replace(replace(@filterByClause, @having_cls1, ''), ' OR )', ')') filterByClause
+       from dual]
+    |
+    if (@occurences = 2)
+    {
+        [select @having_cls having_cls,
+                replace(replace(@filterByClause, @having_cls1, ''), ' AND )', ')') filterByClause
+           from dual]
+    }
+    |
+    publish data
+     where having_cls = @having_cls
+       and filterByClause = @filterByClause
+}
+|
+[select substr(@filterByClause, CHARINDEX('(count(temp.pickface)', @filterByClause, 0), charindex(')', @filterByClause, CHARINDEX('(count(temp.pickface)', @filterByClause, 0) + 21) + 2 - CHARINDEX('(count(temp.pickface)', @filterByClause, 0)) having_cls2
+   from dual]
+|
+if (@having_cls2 not like '(count(temp.pickface)%')
+{
+    publish data
+     where having_cls2 = null
+}
+else
+{
+    if (@having_cls is not null)
+    {
+        [select @having_cls || ' OR ' || @having_cls2 having_cls,
+                replace(replace(@filterByClause, @having_cls2, ''), 'OR OR', 'OR') filterByClause
+           from dual]
+    }
+    else
+    {
+        [select @having_cls2 having_cls,
+                replace(replace(@filterByClause, @having_cls2, ''), 'OR OR', 'OR') filterByClause
+           from dual]
+    }
+}
+|
+[select nvl(@having_cls, ' 1 = 1 ') having_cls,
+        replace(nvl(@filterByClause, ' 1 = 1 '), 'grswgt', 'grswgt/16') filterByClause
+   from dual]
+|
+[/*#limit=@offset,@limit,true*/
+ select temp.prtnum,
+        temp.lngdsc,
+        temp.grswgt / 16 grswgt,
+        temp.lyrcases,
+        count(temp.pickface) pickface,
+        decode(count(temp.pickface), 1, 'NO', 'YES') layer,
+        '' as 'D'
+   from (select ord_line.prtnum,
+                prtdsc.lngdsc,
+                prtmst_view.prtfam,
+                rplcfg.stoloc pickface,
+                sum(shipment_line.pckqty) Ordered,
+                prtftp_view.caslvl,
+                prtftp_view.untpal,
+                prtftp_view.grswgt,
+                sum(trunc(shipment_line.pckqty / prtftp_view.untpal)) pallets,
+                sum(trunc(mod(shipment_line.pckqty, prtftp_view.untpal) / prtftp_view.caslvl)) layers,
+                sum((mod(shipment_line.pckqty, prtftp_view.untpal)) - (mod(mod(shipment_line.pckqty, prtftp_view.untpal), prtftp_view.caslvl))) lyrcases,
+                sum(mod(mod(shipment_line.pckqty, prtftp_view.untpal), prtftp_view.caslvl)) cases
+           from shipment_line
+           join ord_line
+             on shipment_line.ordnum = ord_line.ordnum
+            and shipment_line.client_id = ord_line.client_id
+            and shipment_line.wh_id = ord_line.wh_id
+            and shipment_line.ordlin = ord_line.ordlin
+            and shipment_line.ordsln = ord_line.ordsln
+           join prtmst_view
+             on prtmst_view.prtnum = ord_line.prtnum
+            and prtmst_view.prt_client_id = ord_line.prt_client_id
+            and prtmst_view.wh_id = ord_line.wh_id
+           join prtdsc /*#nobind*/
+             on prtdsc.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+            and prtdsc.colval = /*=varchar(*/ nvl(prtmst_view.prtnum, rtrim(' ')) || '|' || nvl(prtmst_view.prt_client_id, rtrim(' ')) || '|' || nvl(prtmst_view.wh_id_tmpl, rtrim(' ')) /*=)*/ /*#bind*/
+            and prtdsc.locale_id = nvl(@locale_id, @@locale_id)
+           join prtftp_view
+             on prtftp_view.prtnum = prtmst_view.prtnum
+            and prtmst_view.prt_client_id = prtmst_view.prt_client_id
+            and prtmst_view.wh_id = prtmst_view.wh_id
+            and prtftp_view.defftp_flg = 1
+           left
+           join rplcfg
+             on rplcfg.prtnum = prtmst_view.prtnum
+            and rplcfg.prt_client_id = prtmst_view.prt_client_id
+            and rplcfg.wh_id = prtmst_view.wh_id
+          where @+prtmst_view.wh_id
+            and shipment_line.linsts in ('P')
+            and grswgt > 1
+            and @*
+          group by ord_line.prtnum,
+                prtdsc.lngdsc,
+                prtmst_view.prtfam,
+                rplcfg.stoloc,
+                prtftp_view.caslvl,
+                prtftp_view.untpal,
+                prtftp_view.grswgt) temp
+  where @filterByClause:raw
+  group by temp.prtnum,
+        temp.lngdsc,
+        temp.grswgt,
+        temp.lyrcases
+ having @having_cls:raw
+  order by @sortOrderClause:raw]
+
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list claw items.
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

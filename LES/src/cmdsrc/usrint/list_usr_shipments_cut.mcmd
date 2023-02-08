@@ -1,0 +1,90 @@
+<command>
+  <name>list usr shipments cut</name>
+  <description>List usr shipments cut</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and sortOrderClause = nvl(@sortOrderClause, 'temp.start_dte desc')
+   and wh_id = nvl(@wh_id, @@wh_id)
+|
+[/*#limit=@offset,@limit,true*/
+ select temp.wh_id,
+        temp.start_dte,
+        temp.end_dte,
+        temp.cponum,
+        temp.adrnam,
+        temp.prtnum,
+        temp.lngdsc,
+        temp.ordqty,
+        temp.cutqty,
+        temp.vc_reacod,
+        temp.ordnum,
+        temp.carcod,
+        temp.carnam,
+        temp.car_move_id,
+        temp.loddte,
+        temp.close_dte,
+        temp.dispatch_dte,
+        temp.mod_usr_id,
+        temp.moddte,
+        temp.comments
+   from (select ord.wh_id,
+                appt.start_dte,
+                appt.end_dte,
+                ord.cponum,
+                adrmst.adrnam,
+                ord_line.prtnum,
+                prtdsc.lngdsc,
+                ord_line.ordqty,
+                 (case when shipment_line.linsts = 'B' then ord_line.rsvqty
+                      when (ship_struct_view.shpsts <> 'C' and ord_line.host_ordqty = ord_line.ordqty and ord_line.shpqty = 0) then 0
+                      when (ord_line.host_ordqty = ord_line.ordqty and ord_line.shpqty > 0) then(ord_line.ordqty - ord_line.shpqty)
+                      when (ship_struct_view.shpsts = 'C' and shipment_line.linsts = 'P' and ord_line.shpqty = 0) then ord_line.ordqty
+                      else (ord_line.host_ordqty - ord_line.ordqty)
+                 end) cutqty,
+                ord_line.ordlin_chg_reacod vc_reacod,
+                ord_line.vc_comments comments,
+                ord.ordnum,
+                ship_struct_view.carcod,
+                carhdr.carnam,
+                ship_struct_view.car_move_id,
+                ship_struct_view.loddte,
+                ship_struct_view.close_dte,
+                ship_struct_view.dispatch_dte,
+                ord_line.mod_usr_id,
+                ord_line.moddte
+           from ship_struct_view,
+                appt,
+                shipment_line,
+                ord_line,
+                ord,
+                prtdsc,
+                carhdr,
+                adrmst
+          where ship_struct_view.appt_id = appt.appt_id
+            and shipment_line.ship_id = ship_struct_view.ship_id
+            and ord_line.ordnum = shipment_line.ordnum
+            and ord_line.ordlin = shipment_line.ordlin
+            and ord_line.wh_id = shipment_line.wh_id
+            and carhdr.carcod = ship_struct_view.carcod
+            and ord.ordnum = ord_line.ordnum
+            and prtdsc.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+            and prtdsc.colval = ord_line.prtnum || '|' || ord_line.prt_client_id || '|' || ord_line.wh_id
+            and prtdsc.locale_id = nvl(@locale_id, @@locale_id)
+            and ord.wh_id = ord_line.wh_id
+            and ordlin_chg_reacod is not null
+            and ord_line.host_ordqty <> ord_line.shpqty
+            and adrmst.adr_id = ship_struct_view.adr_id
+            and ord.client_id = ord_line.client_id) temp
+  where @filterByClause:raw
+  order by @sortOrderClause:raw]
+
+]]>
+</local-syntax>
+  <argument name="@*" datatype="">Any field value</argument>
+  <argument name="ship_id" datatype="string" />
+</command>

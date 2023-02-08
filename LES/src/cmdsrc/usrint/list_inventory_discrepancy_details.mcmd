@@ -1,0 +1,60 @@
+<command>
+
+<name>list inventory discrepancy details</name>
+
+<description>List Inventory details for receiving discrepancies</description>
+
+<type>Local Syntax</type>
+
+<local-syntax>
+<![CDATA[
+    /*
+     * UNI-930: Katta, Dayakar: 29-Oct-2020
+     * This command was modified to list all the inventory identified/received against the current inbound shipment
+     * No matter where it is.
+     */
+    [select 'X'
+       from poldat_view
+      where polcod = 'USR-UNILEVER'
+        and polvar = 'RCV-DISCREPANCY'
+        and polval = 'IGNORE-RCVSTS'
+        and wh_id = @wh_id
+        and rtnum1 = 1
+        and rownum < 2] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        list usr inventory discrepancy details
+    }
+    else
+    {
+        ^list inventory discrepancy details
+    }
+
+]]>
+</local-syntax>
+
+<argument name="@*">Any invdtl, invlod, invsub field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command is used to list the inventory information details for discrepancies. </p>
+
+  <p>
+  The results of this command include the inventory load, sub,
+  and detail names and its attributes.  
+  </p>
+]]>
+</remarks>
+
+<retcol name="(all invdtl fields)" type="(varies according to field type)"> </retcol>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified pick batch not found</exception>
+
+</documentation>
+
+</command>

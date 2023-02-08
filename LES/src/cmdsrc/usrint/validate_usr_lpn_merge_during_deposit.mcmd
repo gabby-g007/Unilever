@@ -1,0 +1,19 @@
+<command>
+  <name>validate usr lpn merge during deposit</name>
+  <description>validate usr lpn merge during deposit</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+/* This command has beed added to validate if the scanned id is a location and not an LPN to prevent merging of LPNs during deposit*/
+get translated inventory identifier
+ where identifier = @dstloc
+   and wh_id = @wh_id
+|
+if (@colnam != 'stoloc')
+{
+    set return status
+     where status = 10011
+}
+]]>
+</local-syntax>
+</command>

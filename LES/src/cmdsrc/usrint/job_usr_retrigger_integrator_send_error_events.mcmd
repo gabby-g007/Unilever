@@ -1,0 +1,150 @@
+<command>
+  <name>job usr retrigger integrator send error events</name>
+  <description>Job to ReTrigger and Alert for Integrator SE Events</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+list warehouses
+ where wh_id [not in ('WMD1' ,'----' )]
+|
+[select rtstr1 lastRunTime
+   from poldat
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'RETRIGGER-SE-EVENTS'
+    and polval = 'ENABLED'
+    and rtnum1 = 1
+    and wh_id_tmpl = nvl(@wh_id, @@wh_id)] catch(-1403, 510)
+|
+if (@? = 0)
+{
+    if (@lastRunTime is null or @lastRunTime = '')
+    {
+        [update poldat
+            set rtstr1 = convert(varchar, getdate() -1, 20)
+                /*
+                 * Added this condtion to have SE events triggered for 
+                 * past 1 day if policy rtsrt1 is null or when this  
+                 * job runs for the first time in system
+                 */
+          where polcod = 'USR-UNILEVER'
+            and polvar = 'RETRIGGER-SE-EVENTS'
+            and polval = 'ENABLED'
+            and rtnum1 = 1
+            and wh_id_tmpl = nvl(@wh_id, @@wh_id)] catch(-1403, 510)
+        |
+        [select rtstr1 lastRunTime
+           from poldat
+          where polcod = 'USR-UNILEVER'
+            and polvar = 'RETRIGGER-SE-EVENTS'
+            and polval = 'ENABLED'
+            and rtnum1 = 1
+            and rtstr1 is not null
+            and wh_id_tmpl = nvl(@wh_id, @@wh_id)] catch(-1403, 510)
+    }
+    else
+    {
+        [update poldat
+            set rtstr1 = convert(varchar, getdate(), 20)
+          where polcod = 'USR-UNILEVER'
+            and polvar = 'RETRIGGER-SE-EVENTS'
+            and polval = 'ENABLED'
+            and rtnum1 = 1
+            and wh_id_tmpl = nvl(@wh_id, @@wh_id)] catch(-1403, 510)
+    }
+    |
+    /*
+     * Added the below sql to check if there are any successful 
+     * events after retriggering the failed SE events that are
+     * tracked in daily transaction table
+     */
+    [select uc_sl_temp_tbl.evt_data_seq
+       from uc_sl_temp_tbl
+       join sl_evt_data
+         on uc_sl_temp_tbl.evt_data_seq = sl_evt_data.evt_data_seq
+      where sl_evt_data.evt_stat_cd = 'SC'] catch(-1403, 510) >> res
+    |
+    /* 
+     * The successful events will be deleted by below sql from
+     * dlytrn table so that it will not be considered for retrigger 
+     * again and not sent in notification mail
+     */
+    if (rowcount(@res) > 0)
+    {
+        publish data combination
+         where res = @res
+        |
+        [delete
+           from uc_sl_temp_tbl
+          where evt_data_seq = @evt_data_seq] catch(-1403, 510)
+    }
+    |
+    {
+        raise usr ems alert for send error integrator events
+    }
+    |
+    [select *
+       from (select sed.evt_data_seq,
+                    substr(sml.msg_log_data, 0, 100) error_msg,
+                    sed.evt_stat_cd
+               from sl_msg_log sml
+               join sl_evt_data sed
+                 on sed.evt_data_seq = sml.evt_data_seq
+              where sml.msg_log_seq in (select min(sl_msg_log.msg_log_seq)
+                                          from sl_msg_log
+                                          join sl_evt_data
+                                            on sl_evt_data.evt_data_seq = sl_msg_log.evt_data_seq
+                                         where sl_evt_data.evt_stat_cd = 'SE'
+                                         group by sl_msg_log.evt_data_seq)
+                and (sed.evt_dt >= @lastRunTime and sed.evt_dt < sysdate)
+             union
+             select evt_data_seq,
+                    str_fld1 error_msg,
+                    ref_fld1 evt_stat_cd
+               from uc_sl_temp_tbl
+              where exists(select 'x'
+                             from sl_evt_data sed
+                            where sed.evt_data_seq = uc_sl_temp_tbl.evt_data_seq
+                              and sed.evt_stat_cd = 'SE')) dual
+      order by evt_data_seq] catch(-1403, 510)
+    |
+    if (@? = 0)
+    {
+        [select 'x'
+           from uc_sl_temp_tbl
+          where evt_data_seq = @evt_data_seq] catch(-1403, 510)
+        |
+        /*
+         * With above sql we are determining whether we need to
+         * insert the record in dlytrn for the first time
+         * or we need to update the u_verion since it is a
+         * second attempt to retrigger the event
+         */
+        if (@? != 0)
+        {
+            sl_reset evt_ifd_data_for_send
+             where evt_data_seq = @evt_data_seq
+               and reset_all_ifds = 'T'
+            |
+            create record
+             where table = 'UC_SL_TEMP_TBL'
+               and evt_data_seq = @evt_data_seq
+               and ref_fld1 = @evt_stat_cd
+               and str_fld1 = @error_msg
+               and int_fld1 = 1
+        }
+        else
+        {
+            sl_reset evt_ifd_data_for_send
+             where evt_data_seq = @evt_data_seq
+               and reset_all_ifds = 'T'
+            |
+            [update uc_sl_temp_tbl
+                set int_fld1 = int_fld1 + 1
+              where evt_data_seq = @evt_data_seq]
+        }
+    }
+}
+
+]]>
+</local-syntax>
+</command>

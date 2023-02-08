@@ -1,0 +1,120 @@
+<command>
+  <name>raise ems event for close trailer</name>
+  <description>raise ems event for close trailer</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    /* We must prime the event definition */
+    publish data
+     where evt_msg = 'Trailer has been Closed.
+            Warehouse:        @wh_id
+       Trailer Number:        @trlr_num
+	Trailer Seal :        @trlr_seal1   
+              Carrier:        @carcod
+	     Shipment/BOL:        @car_move_id
+	    Delivery Note: 	      @ship_id
+     	       Weight: 	      @trlr_wgt
+ Destination Loc/City: 	      @st_adr_id
+          Trailer Ref:        @trlr_ref
+       Yard Warehouse:        @yard_loc_wh_id
+           Close Date:        @close_dte'
+       and evt_subj = 'Trailer (@wh_id/@trlr_num/@carcod) has been Closed.'
+       and evt_qual = 'trlr_id,wh_id,trlr_num,trlr_seal1,carcod,car_move_id,ship_id,trlr_wgt,st_adr_id,trlr_ref,yard_loc_wh_id,yard_loc,close_dte'
+       and evt_grp = 'YARD-MANAGEMENT'
+       and evt_pri = '1'
+       and evt_nam = @evt_nam
+       and src_sys = @src_sys
+       and lngdsc = 'Trailer has been closed.'
+       and ems_StoredTimZon = @ems_StoredTimZon
+}
+else
+{
+    get ems event information
+     where evt_nam = 'WMD-CLOSE-TRAILER'
+    |
+    if (@enabled = 1)
+    {
+	  /* Hide stack is added to fix the product bug #WMD -253756 */
+		hide stack variable
+			where name = 'turn_flg'
+		|
+        list trailers
+         where trlr_id = @trlr_id
+        |
+		/* Custom changes to trigger alert only for shipping trailers */
+        if (@trlr_cod = 'SHIP')
+        {
+            [select c.car_move_id,
+                    sh.ship_id,
+                    sum(decode(ivd.catch_qty, 0, ((ivd.untqty * 1.0) / (ivd.untcas * 1.0)) * prtftp_dtl.grswgt, ivd.catch_qty)) / 16 trlr_wgt,
+                    a.adrcty,
+   		    t.trlr_seal1,
+        	    sum(asset_typ.asset_wgt) / 16 ast_wgt
+               from trlr t,
+                    car_move c,
+                    stop s,
+                    shipment sh,
+                    shipment_line sl,
+                    ord o,
+                    adrmst a,
+                    invdtl ivd,
+                    invlod ivl,
+                    invsub ivs,
+                    prtftp
+               join prtftp_dtl
+                 on (prtftp_dtl.ftpcod = prtftp.ftpcod)
+                and (prtftp_dtl.prtnum = prtftp.prtnum)
+                and (prtftp_dtl.wh_id = prtftp.wh_id)
+                and (prtftp_dtl.prt_client_id = prtftp.prt_client_id)
+                and (prtftp_dtl.cas_flg = 1),
+        	asset_typ
+              where t.trlr_num = @trlr_num
+                and t.trlr_stat = 'C'
+                and t.trlr_id = c.trlr_id
+                and c.car_move_id = s.car_move_id
+                and s.stop_id = sh.stop_id
+                and sh.ship_id = sl.ship_id
+                and sl.ordnum = o.ordnum
+                and o.st_adr_id = a.adr_id
+                and prtftp.prtnum = ivd.prtnum
+                and prtftp.prt_client_id = ivd.prt_client_id
+                and prtftp.wh_id = ivl.wh_id
+                and ivd.ftpcod = prtftp.ftpcod
+                and ivd.ship_line_id = sl.ship_line_id
+                and ivs.subnum = ivd.subnum
+                and ivl.lodnum = ivs.lodnum
+    		and ivl.asset_typ = asset_typ.asset_typ
+              group by c.car_move_id,
+                    sh.ship_id,
+                    a.adrcty,
+		    t.trlr_seal1] catch(@?)
+            |
+            if (@? = 0)
+            {
+                log ems event
+                 where evt_nam = 'WMD-CLOSE-TRAILER'
+                   and key_val = @trlr_id || '|' || @curdte
+                   and src_sys = @src_sys
+                   and trlr_id = @trlr_id
+                   and wh_id = @wh_id
+                   and trlr_num = @trlr_num
+                   and carcod = @carcod
+                   and car_move_id = @car_move_id
+                   and ship_id = @ship_id
+                   and trlr_wgt = @trlr_wgt + @ast_wgt
+                   and st_adr_id = @adrcty
+                   and trlr_ref = @trlr_ref
+                   and yard_loc_wh_id = @yard_loc_wh_id
+                   and close_dte = @close_dte
+		   and trlr_seal1 = @trlr_seal1
+            }
+        }
+    }
+}
+]]>
+</local-syntax>
+</command>

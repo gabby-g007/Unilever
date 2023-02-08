@@ -1,0 +1,16 @@
+<command>
+  <name>list usr inventory statuses for pickface location</name>
+  <description>list usr inventory statuses for pickface location</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+list inventory statuses
+|
+publish data
+ where invsts = @codval
+   and invstsdsc = @lngdsc
+ 
+]]>
+</local-syntax>
+</command>

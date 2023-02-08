@@ -1,0 +1,286 @@
+<command>
+<name>list usr inbound pallets case claw picks</name>
+<description>List USR Inbound Pallets Case Claw Picks</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+|
+[select replace(replace(@filterByClause, 'rcvtrk.clsdte', 'dlytrn.ins_dt'), 'rcvlin', 'dlytrn') filterByClause_2,
+        replace(replace(@filterByClause, 'rcvtrk.clsdte', 'dlytrn.trndte'), 'rcvlin', 'dlytrn') filterByClause_3,
+        replace(@filterByClause, 'rcvtrk.clsdte', 'trlr.dispatch_dte') filterByClause_4,
+        replace(replace(@filterByClause, 'rcvtrk.clsdte', 'trlr.dispatch_dte'), 'rcvlin', 'ord') filterByClause_5,
+        replace(@filterByClause, 'rcvtrk.clsdte', 'invact.trndte') filterByClause_6
+   from dual]
+|
+[select 'CW' code,
+        'Layer_Cases_Picked' description,
+        nvl(sum(dlytrn.trnqty), 0) Qty
+   from dlytrn,
+        prtftp p,
+        poldat,
+        poldat poldat2
+  where dlytrn.prtnum = p.prtnum
+    and dlytrn.wh_id = p.wh_id
+    and p.defftp_flg = 1
+    and dlytrn.actcod = poldat2.rtstr1
+    and dlytrn.fr_arecod = poldat.rtstr1
+    and dlytrn.to_arecod = poldat.rtstr2
+    and @filterByClause_2:raw
+    and poldat.polcod = 'USR-UNILEVER'
+    and poldat.polvar = 'BILLING-ALERT'
+    and poldat.polval = 'LAYERS-PICKED'
+    and poldat2.polcod = 'USR-UNILEVER'
+    and poldat2.polvar = 'BILLING-ALERT'
+    and poldat2.polval = 'ACTCOD'
+ /* union all
+    select '' code,
+    'Layers_Picked' description,
+    nvl(sum(d.trnqty / p.caslvl), 0) Qty
+    from dlytrn d,
+    prtftp p
+    where d.prtnum = p.prtnum
+    and d.wh_id = p.wh_id
+    and p.defftp_flg = 1
+    and d.actcod in ('LSTPCK')
+    and d.fr_arecod = 'LAYERPF01'
+    and d.to_arecod = 'RDTS'
+    and @filterByClause_2:raw
+    union all
+    select '' code,
+    'Layerpick_Stops' description,
+    nvl(count(d.dlytrn_id), 0) Qty
+    from dlytrn d,
+    prtftp p
+    where d.prtnum = p.prtnum
+    and d.wh_id = p.wh_id
+    and p.defftp_flg = 1
+    and d.actcod in ('LSTPCK')
+    and d.fr_arecod = 'LAYERPF01'
+    and d.to_arecod = 'RDTS'
+    and d.trndte between @beg_dte
+    and @end_dte */
+ union all
+ select 'CP' code,
+        'Casepicked_Cases' description,
+        nvl(sum(dlytrn.trnqty), 0) Qty
+   from dlytrn,
+        poldat,
+        poldat poldat2
+  where dlytrn.actcod = poldat2.rtstr1
+    and dlytrn.wh_id = poldat2.wh_id_tmpl
+    and dlytrn.fr_arecod = poldat.rtstr1
+    and dlytrn.to_arecod = poldat.rtstr2
+    and dlytrn.wh_id = poldat.wh_id_tmpl
+    and @filterByClause_2:raw
+    and poldat.polcod = 'USR-UNILEVER'
+    and poldat.polvar = 'BILLING-ALERT'
+    and poldat.polval = 'CASEPICKED-CASES'
+    and poldat2.polcod = 'USR-UNILEVER'
+    and poldat2.polvar = 'BILLING-ALERT'
+    and poldat2.polval = 'ACTCOD'
+ union all
+ select 'RK' code,
+        'SVG_Split_Pallets' description,
+        nvl(round((count(distinct lodnum) * 13 / 60), 2), 0) Qty
+   from dlytrn,
+        poldat
+  where dlytrn.oprcod in ('PRP', 'PIARPL', 'SVGPIARPL', 'SVGPRP')
+    and dlytrn.to_arecod = poldat.rtstr1
+    and dlytrn.wh_id = poldat.wh_id_tmpl
+    and @filterByClause_3:raw
+    and poldat.polcod = 'USR-UNILEVER'
+    and poldat.polvar = 'BILLING-ALERT'
+    and poldat.polval = 'SVG-PALLETS'
+ union all
+ select 'NP' code,
+        'Switch_Pallets' description,
+        nvl(count(distinct lodnum), 0) Qty
+   from dlytrn
+  where frstol like 'BRUDI%'
+    and lodnum is not null
+    and @filterByClause_2:raw
+ union all
+ select 'RC' code,
+        'Received cases' description,
+        nvl(sum(invact.rcvqty), 0) Qty
+   from invact
+  where invact.actcod = 'INVRCV'
+    and @filterByClause_6:raw
+ union all
+ select 'WL' code,
+        'Partial_Pallets' description,
+        nvl(count(distinct lodnum), 0) Qty
+   from (select distinct dlytrn.lodnum,
+                sum(dlytrn.trnqty) trnqty,
+                pd.untqty,
+                dlytrn.prtnum,
+                pd.ftpcod
+           from dlytrn,
+                prtmst p,
+                prtftp pf,
+                prtftp_dtl pd
+          where dlytrn.prtnum = p.prtnum
+            and p.prtnum = pf.prtnum
+            and pf.prtnum = pd.prtnum
+            and pf.ftpcod = pd.ftpcod
+            and pf.defftp_flg = '1'
+            and pd.uomcod = 'PA'
+            and pd.wh_id = pf.wh_id
+            and pd.wh_id = @wh_id
+            and p.wh_id_tmpl = pd.wh_id
+            and dlytrn.oprcod in ('IDN', 'RCV', 'URC', 'UID')
+            and dlytrn.fr_arecod = 'EXPR'
+            and not exists(select max(dt2.trndte)
+                             from dlytrn dt2
+                            where dlytrn.lodnum = dt2.lodnum
+                              and dt2.actcod = 'RVRCP'
+                            group by dt2.lodnum)
+            and dlytrn.trnqty < pd.untqty
+            and @filterByClause_3:raw
+          group by pd.ftpcod,
+                dlytrn.prtnum,
+                dlytrn.lodnum,
+                pd.untqty) temp
+  where trnqty < untqty
+ /* union all
+    select '' code,
+    'Full_Pallets' description,
+    nvl(count(d.lodnum), 0) Qty
+    from dlytrn d,
+    prtmst p,
+    prtftp pf,
+    prtftp_dtl pd
+    where d.prtnum = p.prtnum
+    and p.prtnum = pf.prtnum
+    and pf.prtnum = pd.prtnum
+    and pf.ftpcod = pd.ftpcod
+    and pf.defftp_flg = '1'
+    and pd.uomcod = 'PA'
+    and d.oprcod in ('URC')
+    and d.trndte between @beg_dte
+    and @end_dte
+    and d.trnqty = pd.untqty */
+ union all
+ select 'VH' code,
+        'Inbound_Pallets' description,
+        nvl(sum(CM.numpal), 0) Qty
+   from (select invact.trknum,
+                count(distinct (invnum || invlin)) as RL,
+                sum(rcvqty) as CS,
+                (count(*) - (2 *(sum(decode(sign(rcvqty), -1, 1, 0))))) numpal
+           from invact
+          where actcod = 'INVRCV'
+            and @filterByClause_6:raw
+          group by invact.trknum) CM
+  where CM.CS > 0
+    and CM.numpal > 0
+ union all
+ select 'RC' code,
+        'Recoup_LPNs' description,
+        nvl(sum(dlytrn.trnqty), 0) Qty
+   from dlytrn
+  where toinvs = 'DAMG'
+    and @filterByClause_3:raw
+ union all
+ select 'OP' code,
+        'Outbound_Pallets' description,
+        nvl(count(sum_loadnlbl.pallets), 0) Qty
+   from (select distinct iv.lodnum pallets
+           from inventory_view iv,
+                shipment_line sl,
+                trlr
+          where iv.ship_line_id = sl.ship_line_id
+            and iv.wh_id = sl.wh_id
+            and iv.stoloc = trlr.trlr_id
+            and trlr.trlr_stat = 'D'
+            and trlr.dispatch_dte is not null
+            and @filterByClause_5:raw) sum_loadnlbl
+ union all
+ select 'LP' code,
+        'Outbound_Pallet_Lables' description,
+        nvl(sum(sum_loadnlbl.lables), 0) Qty
+   from (select distinct iv.lodnum,
+                o.vc_label_cnt lables
+           from inventory_view iv,
+                shipment_line sl,
+                ord o,
+                trlr
+          where iv.ship_line_id = sl.ship_line_id
+            and iv.wh_id = sl.wh_id
+            and sl.ordnum = o.ordnum
+            and sl.client_id = o.client_id
+            and sl.wh_id = o.wh_id
+            and iv.stoloc = trlr.trlr_id
+            and trlr.trlr_stat = 'D'
+            and trlr.dispatch_dte is not null
+            and @filterByClause_5:raw) sum_loadnlbl
+ union all
+ select 'AS' code,
+        'Total_Pallets_Non_ASN' description,
+        nvl(sum(data3.tot_pallets), 0) Qty
+   from (select data2.prtnum,
+                case when floor(data2.tot_rcvqty / data2.untpal) > 0 then ceil((data2.tot_rcvqty - (floor(data2.tot_rcvqty / data2.untpal) * data2.untpal)) / data2.untcas)
+                     else ceil(data2.tot_rcvqty / data2.untcas)
+                end tot_cases,
+                floor(data2.tot_rcvqty / data2.untpal) tot_pallets
+           from (select data.*,
+                        p1.untqty untcas,
+                        p2.untqty untpal
+                   from (select rl.prtnum,
+                                sum(rl.rcvqty) tot_rcvqty
+                           from trlr,
+                                rcvtrk,
+                                rcvlin rl
+                          where rcvtrk.trknum = rl.trknum
+                            and trlr.trlr_id = rcvtrk.trlr_id
+                            and @filterByClause_4:raw
+                            and exists(select 1
+                                         from inventory_view iv
+                                        where iv.rcvkey = rl.rcvkey
+                                          and iv.asnflg = '0'
+                                          and rownum < 2)
+                          group by rl.prtnum) data,
+                        prtftp p,
+                        prtftp_dtl p1,
+                        prtftp_dtl p2
+                  where p.wh_id = p2.wh_id
+                    and p.prtnum = p2.prtnum
+                    and p.prt_client_id = p2.prt_client_id
+                    and p.ftpcod = p2.ftpcod
+                    and p.prtnum = p1.prtnum
+                    and p.prt_client_id = p1.prt_client_id
+                    and p.ftpcod = p1.ftpcod
+                    and p.wh_id = p1.wh_id
+                    and p.prtnum = data.prtnum
+                    and p1.cas_flg = '1'
+                    and p2.pal_flg = '1'
+                    and p.defftp_flg = '1'
+                    and p.wh_id = nvl(@wh_id, @@wh_id)) data2) data3]
+|
+publish data
+ where wh_id = '3' || @wh_id
+   and code = @code
+   and description = @description
+   and quantity = nvl(@qty, 0)
+   and D = @D
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+<documentation>
+<remarks>
+<![CDATA[
+  <p>
+  This command will list the Picks at multiple levels and Received LPNs and Cases in the given duration.
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+</documentation>
+</command>

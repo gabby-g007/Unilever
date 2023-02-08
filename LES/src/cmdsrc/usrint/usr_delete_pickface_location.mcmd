@@ -1,0 +1,21 @@
+<command>
+  <name>usr delete pickface location</name>
+  <description>usr delete pickface location</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+publish data
+ where wh_id = nvl(@wh_id, @@wh_id)
+   and stoloc = @stoloc
+   and prtnum = @prtnum
+|
+remove replenishment configuration
+ where wh_id = @wh_id
+   and stoloc = @stoloc
+   AND prtnum = @prtnum
+ 
+  
+]]>
+</local-syntax>
+</command>

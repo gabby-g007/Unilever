@@ -1,0 +1,3 @@
+evt_nam,evt_seq,evt_fld_nam,evt_fld_typ,moddte,mod_usr_id,grp_nam
+USR-INVENTORY-DETAILS-REPORT,1,wh_id,STRING,,NOUSER,usr_data
+USR-INVENTORY-DETAILS-REPORT,2,src_sys,STRING,,NOUSER,usr_data

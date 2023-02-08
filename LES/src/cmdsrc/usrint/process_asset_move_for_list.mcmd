@@ -1,0 +1,20 @@
+<command>
+  <name>process asset move for list</name>
+  <description>process asset move for list</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+publish data
+ where lodnum = nvl(@pck_to_id, @lodnum)
+|
+if (@lodnum like '%�%' or @lodnum like '%!%' or @lodnum like '%@%' or @lodnum like '%`%' or @lodnum like '%~%' or @lodnum like '%#%' or @lodnum like '%$%' or @lodnum like '%^%' or @lodnum like '%&%' or @lodnum like '%*%' or @lodnum like '%(%' or @lodnum like '%)%' or @lodnum like '%?%')
+{
+    set return status
+     where status = 90001
+}
+|
+^process asset move for list
+]]>
+</local-syntax>
+</command>

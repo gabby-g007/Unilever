@@ -1,0 +1,49 @@
+<command>
+  <name>create usr carrier move notes in appointment display</name>
+  <description>create usr carrier move notes in appointment display</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+validate stack variable not null
+ where name = 'car_move_id'
+|
+[select count(1) cnt_notes
+   from car_move_note
+  where car_move_id = @car_move_id
+    and notlin = @cmvnotlin
+    and nottyp = 'GEN']
+|
+if (@cnt_notes = 0)
+{
+    if (@cmvnotlin is null or @cmvnotlin = '')
+    {
+        create carrier move note
+         where car_move_id = @car_move_id
+           and notlin = '0000'
+           and nottxt = @cmvnottxt
+           and nottyp = @nottyp
+    }
+    else
+    {
+        create carrier move note
+         where car_move_id = @car_move_id
+           and notlin = @cmvnotlin
+           and nottxt = @cmvnottxt
+           and nottyp = @nottyp
+           
+    }
+}
+else
+{
+    change carrier move note
+     where car_move_id = @car_move_id
+       and notlin = @cmvnotlin
+       and nottxt = @cmvnottxt
+       and nottyp = @nottyp
+       
+}
+
+]]>
+</local-syntax>
+</command>

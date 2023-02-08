@@ -1,0 +1,139 @@
+<command>
+  
+ <name>remove usr older expected status receipts and trailer</name>
+  
+ <description>Remove Old Receipts and Trailer that are in expected status</description>
+  
+ <type>Local Syntax</type>
+  
+ <local-syntax>
+
+<![CDATA[
+
+/* Remove trailers and associated master receipts, lines with expected status that are older than days defined in policy */
+[select rtnum2,
+        rtstr2
+   from poldat
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'JOBS'
+    and polval = 'USR-REMOVE-OLD-EXPECTED-TRAILER-AND-RECEIPT']
+|
+[select distinct trlr.trlr_id,
+        rcvtrk.trknum,
+        locmst.stoloc storage_loc
+   from rcvtrk
+   left
+   join rcvinv
+     on rcvtrk.trknum = rcvinv.trknum
+    and rcvtrk.wh_id = rcvinv.wh_id
+   left
+   join rcvlin
+     on rcvtrk.trknum = rcvlin.trknum
+    and rcvinv.trknum = rcvlin.trknum
+    and rcvinv.invnum = rcvlin.invnum
+    and rcvtrk.wh_id = rcvlin.wh_id
+   left
+   join trlr
+     on rcvtrk.trlr_id = trlr.trlr_id
+    and rcvtrk.wh_id = trlr.stoloc_wh_id
+   left
+   join locmst
+     on rcvtrk.trknum = locmst.stoloc
+    and rcvtrk.wh_id = locmst.wh_id
+  where rcvtrk.moddte < sysdate - @rtnum2
+    and trlr.trlr_stat = 'EX'] catch(@?)
+|
+{
+    [delete
+       from rcvlin
+      where rcvlin.trknum = @trknum] catch(@?);
+    [delete
+       from rcvinv
+      where rcvinv.trknum = @trknum] catch(@?);
+    [delete
+       from rcvtrk
+      where rcvtrk.trknum = @trknum] catch(@?);
+    [delete
+       from locmst
+      where locmst.stoloc = @storage_loc] catch(@?);
+    [delete
+       from trlr
+      where trlr_id = @trlr_id
+        and trlr_stat = 'EX'] catch(@?);
+};
+
+/* Remove trailers which are not associated with carrier Move, receipts and as a storage trailer that are older than days defined in policy */
+[select rtnum2,
+        rtstr2
+   from poldat
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'JOBS'
+    and polval = 'USR-REMOVE-OLD-EXPECTED-TRAILER-AND-RECEIPT']
+|
+[select t.trlr_id,
+        t.trlr_stat
+   from trlr t
+  where t.trlr_stat != 'D'
+    and not exists(select *
+                     from car_move c
+                    where t.trlr_id = c.trlr_id)
+    and not exists(select *
+                     from rcvtrk r
+                    where t.trlr_id = r.trlr_id)
+    and not exists(select *
+                     from locmst l
+                    where t.trlr_id = l.stoloc)
+    and t.moddte < sysdate - @rtnum2] catch(@?)
+|
+[delete
+   from trlr
+  where trlr_id = @trlr_id
+    and trlr_stat = @trlr_stat] catch(@?);
+
+/* Remove master receipts, lines with expected status older that are older than days defined in policy */
+[select rtnum1,
+        rtstr1
+   from poldat
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'JOBS'
+    and polval = 'USR-REMOVE-OLD-EXPECTED-TRAILER-AND-RECEIPT']
+|
+[select distinct rcvtrk.trknum,
+        locmst.stoloc storage_loc
+   from rcvtrk
+   left
+   join rcvinv
+     on rcvtrk.trknum = rcvinv.trknum
+    and rcvtrk.wh_id = rcvinv.wh_id
+   left
+   join rcvlin
+     on rcvtrk.trknum = rcvlin.trknum
+    and rcvinv.trknum = rcvlin.trknum
+    and rcvinv.invnum = rcvlin.invnum
+    and rcvtrk.wh_id = rcvlin.wh_id
+   left
+   join locmst
+     on rcvtrk.trknum = locmst.stoloc
+    and rcvtrk.wh_id = locmst.wh_id
+  where rcvtrk.moddte < sysdate - @rtnum1
+    and rcvtrk.rcvtrk_stat = 'EX']
+|
+{
+    [delete
+       from rcvlin
+      where rcvlin.trknum = @trknum] catch(@?);
+    [delete
+       from rcvinv
+      where rcvinv.trknum = @trknum] catch(@?);
+    [delete
+       from rcvtrk
+      where rcvtrk.trknum = @trknum] catch(@?);
+    [delete
+       from locmst
+      where locmst.stoloc = @storage_loc] catch(@?);
+};
+]]>
+
+</local-syntax>
+
+</command>

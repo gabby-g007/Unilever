@@ -1,0 +1,70 @@
+<command>
+  <name>create inbound service plan receive line</name>
+  <description>create inbound service plan receive line</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+/* 
+* Checking if PFF Workflow is required for the truck without PFF items.If no PFF items, workflow should not be executed.
+*/
+[select *
+ from inb_serv_rcvinv
+ where trknum=@trknum
+   and invnum=@invnum]catch(@?)
+	|
+	if(@?=0 and @serv_id='PFF')
+	{
+    [select count(*) pff_count
+   from rcvinv
+   join rcvlin
+     on rcvlin.trknum = rcvinv.trknum
+    and rcvinv.invnum = rcvlin.invnum
+    and rcvlin.prtnum in (select prtnum
+                            from prtmst_view
+                           where prtfit in ('C1', 'C2'))
+	and rcvinv.wh_id = nvl(@wh_id, @@wh_id)
+	where rcvinv.trknum = @trknum] catch(@?)
+		|
+		if (@? = 0 and @pff_count = 0)
+		{
+	    remove inbound service receive invoice
+		where trknum=@trknum
+		and invnum=@invnum
+		and supnum=@supnum
+		and serv_id=@serv_id
+		and serv_rate_id=@serv_rate_id
+		}
+	}
+	else
+	{
+		if(@?=-1403)
+		{
+		[select count(*) pff_count
+   from rcvinv
+   join rcvlin
+     on rcvlin.trknum = rcvinv.trknum
+    and rcvinv.invnum = rcvlin.invnum
+    and rcvlin.prtnum in (select prtnum
+                            from prtmst_view
+                           where prtfit in ('C1', 'C2'))
+	and rcvinv.wh_id = nvl(@wh_id, @@wh_id)
+	where rcvinv.trknum = @trknum]catch(@?)
+			|
+			if (@? = 0 and @pff_count >0)
+			{
+			create inbound service receive invoice
+			where trknum=@trknum
+			and invnum=@invnum
+			and supnum=@supnum
+			and serv_id='PFF'
+			and serv_rate_id='PFF'  
+			and def_serv_cod = 'WH'
+			and @*
+			}
+		}
+	}
+	|
+	^create inbound service plan receive line
+]]>
+</local-syntax>
+</command>

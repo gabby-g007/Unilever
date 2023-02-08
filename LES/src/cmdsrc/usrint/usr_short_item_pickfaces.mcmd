@@ -1,0 +1,50 @@
+<command>
+  <name>usr short item pickfaces</name>
+  <description>usr short item pickfaces</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+publish data 
+where filterByClause = nvl(@filterByClause, [1=1])
+|
+list warehouses
+ where wh_id <> 'WMD1'
+|
+[select prtnum part
+   from prtmst_view
+  where @filterByClause:raw
+    and wh_id_tmpl = @wh_id] catch(@?)
+|
+list assigned locations for part master
+ where wh_id = @wh_id
+   and prtnum = @part catch(@?)
+|
+publish data
+ where filterByClause = ''
+|
+if (@locasg = 1)
+{
+    list locations
+     where wh_id = @wh_id
+       and stoloc = @begloc
+}
+|
+publish data
+ where stoloc = @stoloc
+   and prtnum = @part
+   and prtfam = @prtfam
+   and wh_id = @wh_id
+   and arecod = @arecod
+   and locsts = @locsts
+   and wrkzon = @wrkzon
+   and aisle_id = @aisle_id
+   and lochgt = @lochgt
+   and loclen = @loclen
+   and locwid = @locwid
+   and maxqvl = @maxqvl
+   and curqvl = @curqvl
+   and pndqvl = @pndqvl
+   and useflg = @useflg
+   and stoflg = @stoflg]]>
+   </local-syntax>
+</command>

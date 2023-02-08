@@ -1,0 +1,161 @@
+<command>
+  <name>process usr wave planning</name>
+  <description>process usr wave planning</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+list warehouses
+ where wh_id != 'WMD1'
+|
+/* Find Loads that haven't been planned into a Wave yet */
+[select distinct car_move.wh_id,
+        car_move.car_move_id,
+        car_move.moddte
+   from car_move
+  inner
+   join stop
+     on car_move.car_move_id = stop.car_move_id
+  inner
+   join appt
+     on appt.car_move_id = stop.car_move_id 
+  inner
+   join shipment
+     on stop.stop_id = shipment.stop_id
+    and car_move.wh_id = shipment.wh_id
+  inner
+   join shipment_line
+     on shipment.ship_id = shipment_line.ship_id
+    and shipment.wh_id = shipment_line.wh_id
+  where car_move.wh_id = @wh_id
+    and shipment_line.schbat is null
+    and shipment.shpsts = 'R'
+    and shipment_line.linsts != 'B'
+ /* To make sure we're not accidentally grabbing a Load that is in the process of being created by Integrator, let’s consider the Load must have existed for at least 5 minutes already before processing it */
+    and datediff(mi, car_move.moddte, sysdate) >= 5
+  order by car_move.moddte asc] catch(@?)
+|
+if (@? = 0)
+{
+    /* Get Load information so we can plan it into a Wave */
+    [select distinct car_move.wh_id,
+            car_move.car_move_id,
+            shipment.ship_id,
+            shipment.shpsts,
+            shipment_line.ship_line_id,
+            ord_line.ordnum,
+            ord_line.ordlin,
+            ord_line.ordsln,
+            ord_line.client_id
+       from car_move
+      inner
+       join stop
+         on car_move.car_move_id = stop.car_move_id
+	  inner
+       join appt
+     on appt.car_move_id = stop.car_move_id
+      inner
+       join shipment
+         on stop.stop_id = shipment.stop_id
+        and car_move.wh_id = shipment.wh_id
+      inner
+       join shipment_line
+         on shipment.ship_id = shipment_line.ship_id
+        and shipment.wh_id = shipment_line.wh_id
+      inner
+       join ord_line
+         on shipment_line.ordnum = ord_line.ordnum
+        and shipment_line.ordlin = ord_line.ordlin
+        and shipment_line.ordsln = ord_line.ordsln
+        and shipment_line.wh_id = ord_line.wh_id
+        and shipment_line.client_id = ord_line.client_id
+      where car_move.car_move_id = @car_move_id
+        and car_move.wh_id = @wh_id] >> res
+    |
+    {
+        /* Build comma separated list for Warehouse ID */
+        convert column results to string
+         where colnam = 'wh_id'
+           and res = @res
+           and separator = ','
+        |
+        publish data
+         where wh_id_list = @result_string
+        |
+        /* Build comma separated list for Outbound Order Number */
+        convert column results to string
+         where colnam = 'ordnum'
+           and res = @res
+           and separator = ','
+        |
+        publish data
+         where ordnum_list = @result_string
+        |
+        /* Build comma separated list for Outbound Order Line */
+        convert column results to string
+         where colnam = 'ordlin'
+           and res = @res
+           and separator = ','
+        |
+        publish data
+         where ordlin_list = @result_string
+        |
+        /* Build comma separated list for Outbound Order Sub-Line */
+        convert column results to string
+         where colnam = 'ordsln'
+           and res = @res
+           and separator = ','
+        |
+        publish data
+         where ordsln_list = @result_string
+        |
+        /* Build comma separated list for Client ID */
+        convert column results to string
+         where colnam = 'client_id'
+           and res = @res
+           and separator = ','
+        |
+        publish data
+         where client_id_list = @result_string
+        |
+        /* Build comma separated list for Shipment Line ID */
+        convert column results to string
+         where colnam = 'ship_line_id'
+           and res = @res
+           and separator = ','
+        |
+        publish data
+         where ship_line_id_list = @result_string
+        |
+        /* Publish  */
+        publish data
+         where wh_id_list = @wh_id_list
+           and ordnum_list = @ordnum_list
+           and ordlin_list = @ordlin_list
+           and ordsln_list = @ordsln_list
+           and client_id_list = @client_id_list
+           and ship_line_id_list = @ship_line_id_list
+    }
+    |
+    {
+        /* Plan Load into a Wave */
+        process wave rules asynchronously
+         where rule_nam = 'STD-DESTSELECTION'
+           and waveset = ''
+           and wh_id_list = @wh_id_list
+           and wh_id = @wh_id
+           and ordlin_list = @ordlin_list
+           and ordnum_list = @ordnum_list
+           and ordsln_list = @ordsln_list
+           and schbat = @car_move_id
+           and client_id_list = @client_id_list
+           and ship_line_id_list = @ship_line_id_list
+        |
+        /* Commit each Wave as it's created */
+        commit
+    }
+}
+
+]]>
+</local-syntax>
+</command>

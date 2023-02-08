@@ -1,0 +1,124 @@
+<command>
+<name>list usr outbound conditions</name>
+<description>List items with outbound conditions</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+list warehouses
+ where wh_id <> 'WMD1'
+|
+[select distinct trlr.trlr_num,
+        trlr.yard_loc,
+        car_move.car_move_id,
+        min(shipment.stgdte) stgdte,
+        max(shipment.loddte) loddte,
+        adrmst.adrnam,
+        car_move.carcod,
+        car_move.attn_cod,
+        trlr.trlr_stat,
+        appt.appt_id,
+        appt.start_dte,
+        trlr.arrdte,
+        trlr.dispatch_dte,
+        case when trlr.arrdte is null then 0
+             else datediff(hour, trlr.arrdte, sysdate)
+        end elapsed_time,
+        case when appt.appt_id is null then 0
+             else
+             case when trlr.arrdte is null then 0
+                  else datediff(hour, trlr.arrdte, appt.start_dte)
+             end
+        end on_time_chck,
+        case when max(shipment.loddte) is null then 0
+             else
+             case when trlr.dispatch_dte is null then datediff(hour, max(shipment.loddte), sysdate)
+                  else datediff(hour, max(shipment.loddte), trlr.dispatch_dte)
+             end
+        end dwell_time,
+        case when min(shipment.stgdte) is null then 0
+             else
+             case when max(shipment.loddte) is null then datediff(hour, min(shipment.stgdte), sysdate)
+                  else datediff(hour, min(shipment.stgdte), max(shipment.loddte))
+             end
+        end load_time,
+        case when car_move.car_move_id in (select distinct stop.car_move_id
+                                             from stop,
+                                                  shipment,
+                                                  shipment_line,
+                                                  pckwrk_view,
+                                                  prtmst,
+                                                  ord
+                                            where stop.stop_id = shipment.stop_id
+                                              and shipment.ship_id = shipment_line.ship_id
+                                              and shipment.wh_id = shipment_line.wh_id
+                                              and shipment_line.ordnum = ord.ordnum
+                                              and shipment_line.wh_id = ord.wh_id
+                                              and pckwrk_view.prtnum = prtmst.prtnum
+                                              and pckwrk_view.wh_id = prtmst.wh_id_tmpl
+                                              and pckwrk_view.ship_id = shipment.ship_id
+                                              and shipment.shpsts in ('S', 'L', 'C')
+                                              and shipment.wh_id = nvl(@wh_id, @@wh_id)
+                                              and (decode(prtmst.prtfit, 'C1', 'YES', 'C2', 'YES', 'NO') = 'YES')) then 'YES'
+             else 'NO'
+        end pff
+   from trlr
+   join car_move
+     on trlr.trlr_id = car_move.trlr_id
+   join stop
+     on car_move.car_move_id = stop.car_move_id
+   join shipment
+     on stop.stop_id = shipment.stop_id
+   join adrmst
+     on car_move.carcod = adrmst.host_ext_id
+   left outer
+   join appt
+     on car_move.car_move_id = appt.car_move_id
+  where trlr.trlr_cod = 'SHIP'
+    and shipment.shpsts in ('S', 'L', 'C')
+    and shipment.wh_id = nvl(@wh_id, @@wh_id)
+  group by trlr.trlr_num,
+        trlr.yard_loc,
+        car_move.car_move_id,
+        adrmst.adrnam,
+        car_move.carcod,
+        car_move.attn_cod,
+        trlr.dispatch_dte,
+        trlr.trlr_stat,
+        appt.appt_id,
+        appt.start_dte,
+        trlr.arrdte]
+|
+publish data
+ where trlr_num = @trlr_num
+   and yard_loc = @yard_loc
+   and car_move_id = @car_move_id
+   and loddte = @loddte
+   and adrnam = @adrnam
+   and ship_condition = @pff
+   and storage_condition = @pff
+   and attn_cod = @attn_cod
+   and system_date = sysdate
+   and elapsed_time = @elapsed_time
+   and carcod = @carcod
+   and trlr_stat = @trlr_stat
+   and appt_id = @appt_id
+   and start_dte = @start_dte
+   and arrdte = @arrdte
+   and on_time_chck = @on_time_chck
+   and dispatch_dte = @dispatch_dte
+   and dwell_time = @dwell_time
+   and load_time = @load_time
+]]>
+</local-syntax>
+<documentation>
+<remarks>
+<![CDATA[
+  <p>
+  This commands will list missing item with Shipping and storage conditions.
+  </p>
+]]>
+</remarks>
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">No picks are found.</exception>
+</documentation>
+</command>

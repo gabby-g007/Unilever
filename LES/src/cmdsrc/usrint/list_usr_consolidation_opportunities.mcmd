@@ -1,0 +1,62 @@
+<command>
+<name>list usr consolidation opportunities</name>
+<description>List USR Consolidation Opportunities</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'inventory_view.prtnum, inventory_view.expire_dte, locmst.curqvl')
+|
+[/*#limit=@offset,@limit,true*/
+ select distinct inventory_view.stoloc,
+        inventory_view.prtnum,
+        inventory_view.expire_dte,
+        prtmst_view.fifwin,
+        locmst.maxqvl,
+        locmst.curqvl,
+        locmst.pndqvl,
+        (locmst.maxqvl - (locmst.curqvl + locmst.pndqvl)) available,
+        inventory_view.invsts,
+        '' as 'D'
+   from inventory_view
+   join locmst
+     on inventory_view.stoloc = locmst.stoloc
+    and inventory_view.wh_id = locmst.wh_id
+    and (locmst.maxqvl > (locmst.curqvl + locmst.pndqvl))
+   join mov_zone
+     on mov_zone.mov_zone_id = inventory_view.lst_mov_zone_id
+    and mov_zone.wh_id = inventory_view.wh_id
+   join prtmst_view
+     on inventory_view.prtnum = prtmst_view.prtnum
+    and inventory_view.prt_client_id = prtmst_view.prt_client_id
+    and inventory_view.wh_id = prtmst_view.wh_id
+  where @+locmst.wh_id
+    and @filterByClause:raw
+    and @*
+  order by @sortOrderClause:raw]
+
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will the custom consolidation opportunities.
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

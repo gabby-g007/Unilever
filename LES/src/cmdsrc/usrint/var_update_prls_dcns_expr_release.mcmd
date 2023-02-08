@@ -1,0 +1,325 @@
+<command>
+  <name>var update prls release</name>
+  <description>var update prls release</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+/*
+ * Katta, Dayakar: 25th November'2021: Command is modified to batch the INV-STS transactions by Item and Lot combination
+ */
+ 
+{
+    list warehouses
+     where wh_id <> 'WMD1'
+    |
+    [select distinct inventory_view.stoloc,
+            inventory_view.age_pflnam,
+            inventory_view.expire_dte,
+            inventory_view.mandte,
+            inventory_view.prtnum,
+            inventory_view.lotnum,
+            inventory_view.lodnum,
+            inventory_view.subnum,
+            inventory_view.dtlnum,
+            inventory_view.untqty,
+            prtmst.rcvsts,
+            prtmst.lot_fmt_id,
+            round(moca_util.date_diff_days(sysdate, inventory_view.expire_dte)) days_to_expire
+       from inventory_view,
+            locmst,
+            aremst,
+            prtmst,
+			loc_typ
+      where locmst.stoloc = inventory_view.stoloc
+        and locmst.arecod = aremst.arecod
+        and locmst.wh_id = aremst.wh_id
+        and loc_typ.fwiflg = 1
+        and loc_typ.loc_typ_id = locmst.loc_typ_id
+        and loc_typ.wh_id = locmst.wh_id
+        and aremst.wh_id = @wh_id
+        and prtmst.prtnum = inventory_view.prtnum
+        and inventory_view.invsts = 'PRLS'
+        and inventory_view.wrkref is null] catch(-1403) >> res
+    |
+    if (@? = 0)
+    {
+        generate next number
+         where numcod = 'uc_batch_evt_key'
+        |
+        publish data
+         where uc_batch_evt_key = @nxtnum
+        |
+        save session variable
+         where name = 'uc_batch_evt_key'
+           and value = @uc_batch_evt_key
+        |
+        publish data combination
+         where res = @res
+           and uc_batch_evt_key = @uc_batch_evt_key
+        |
+        publish data
+         where temp = @age_pflnam
+        |
+        [select substr(@temp, 1, instr(@temp, '/') -1) shelf_life,
+                substr(@temp, instr(@temp, '/') + 1) temp1
+           from dual]
+        |
+        [select @shelf_life shelf_life,
+                substr(@temp1, 1, instr(@temp1, '/') -1) th_hours,
+                substr(@temp1, instr(@temp1, '/') + 1) temp2
+           from dual]
+        |
+        [select @shelf_life shelf_life,
+                @th_hours th_hours,
+                substr(@temp2, 1, instr(@temp2, '/') -1) dcns_days,
+                substr(@temp2, instr(@temp2, '/') + 1) temp3
+           from dual]
+        |
+        [select @shelf_life shelf_life,
+                @th_hours th_hours,
+                @dcns_days dcns_days,
+                substr(@temp3, 1, instr(@temp3, '/') -1) mfg_code,
+                substr(@temp3, instr(@temp3, '/') + 1) dte_cod
+           from dual]
+        |
+        publish data
+         where stoloc = @stoloc
+           and age_pflnam = @age_pflnam
+           and expire_dte = @expire_dte
+           and mandte = @mandte
+           and dcns_dte = @mandte + (@dcns_days + 1)
+           and prtnum = @prtnum
+           and lotnum = @lotnum
+           and lodnum = @lodnum
+           and dtlnum = @dtlnum
+           and untqty = @untqty
+           and rcvsts = @rcvsts
+           and lot_fmt_id = @lot_fmt_id
+           and days_to_expire = @days_to_expire
+           and shelf_life = @shelf_life
+           and th_hours = @th_hours
+           and dcns_days = @dcns_days
+           and mfg_code = @mfg_code
+           and dte_cod = @dte_cod
+           and vc_comment = @vc_comment
+        |
+        if (@dcns_dte <= 1)
+        {
+            publish data
+             where dcns_dte = NULL
+        }
+        |
+        [select round(moca_util.date_diff_days(sysdate, @dcns_dte)) days_to_dcns
+           from dual]
+        |
+        if (@days_to_expire < 0 and @days_to_expire is not NULL)
+        {
+            [update invdtl
+                set invsts = 'EXPD',
+                    last_upd_user_id = 'PRLSJOB',
+                    last_upd_dt = sysdate
+              where dtlnum = @dtlnum]
+            |
+            list inventory
+             where dtlnum = @dtlnum
+               and wh_id = @wh_id
+            |
+            [select 'X'
+               from poldat_view
+              where polcod = 'USR-UNILEVER'
+                and polvar = 'EVENTS-BATCHING'
+                and polval = 'ENABLED'
+                and rtstr1 = 'INV-STS'
+                and wh_id = nvl(@wh_id, @@wh_id)
+                and rtnum1 = 1
+                and rownum < 2] catch(-1403)
+            |
+            if (@? = 0)
+            {
+                create record
+                 where table = 'uc_inv_sts_hld_info'
+                   and uc_batch_evt_key = @uc_batch_evt_key
+                   and evt_id = 'INV-STS'
+                   and wh_id = nvl(@wh_id, @@wh_id)
+                   and arecod = @arecod
+                   and stoloc = @stoloc
+                   and lodnum = @lodnum
+                   and subnum = @subnum
+                   and dtlnum = @dtlnum
+                   and prtnum = @prtnum
+                   and prt_client_id = @prt_client_id
+                   and orgcod = @orgcod
+                   and revlvl = @revlvl
+                   and lotnum = @lotnum
+                   and sup_lotnum = @sup_lotnum
+                   and supnum = @supnum
+                   and fr_invsts = 'PRLS'
+                   and to_invsts = 'EXPD'
+                   and trnqty = @untqty
+                   and hld_flg = @hld_flg
+                   and mandte = @mandte
+                   and expire_dte = @expire_dte
+                   and reacod = @reacod
+                   and trans_wh_id = nvl(@trans_wh_id, nvl(@wh_id, @@wh_id))
+                   and ins_usr_id = nvl(@user_id, @@user_id)
+                   and bldg_id = @bldg_id
+            }
+            else
+            {
+                sl_log event
+                 where evt_id = 'INV-STS'
+                   and ifd_data_ptr = NULL
+                   and sys_id = 'DCS'
+                   and FR_INVSTS = 'PRLS'
+                   and HSTDST = 'EXPD'
+                   and HSTSRC = 'PRLS'
+                   and PRTNUM = @prtnum
+                   and TRNQTY = @untqty
+                   and arecod = @arecod
+                   and dtlnum = @dtlnum
+                   and hld_flg = @hld_flg
+                   and to_lotnum = @lotnum
+                   and lodnum = @lodnum
+                   and subnum = @subnum
+                   and TO_MANDTE = @mandte
+                   and TO_EXPIRE_DTE = @expdte
+                   and to_invsts = 'EXPD'
+                   and TRANS_WH_ID = @wh_id
+                   and wh_id = @wh_id
+                   and usr_id = 'PRLSJOB'
+                   and stoloc = @stoloc
+            }
+            |
+            write daily transaction
+             where lodnum = @lodnum
+               and subnum = @subnum
+               and dtlnum = @dtlnum
+               and frinvs = 'PRLS'
+               and toinvs = 'EXPD'
+               and fr_arecod = @arecod
+               and to_arecod = @arecod
+               and frstol = @stoloc
+               and tostol = @stoloc
+               and movref = 'VAR_PRLS_RELS'
+               and reacod = @reacod
+               and actcod = 'INVSTSCHG'
+               and usr_id = 'PRLSJOB'
+               and wh_id = @wh_id
+        }
+        else if (@dcns_dte < sysdate and @dcns_dte is not NULL)
+        {
+            [update invdtl
+                set invsts = 'DCNS',
+                    last_upd_user_id = 'PRLSJOB',
+                    last_upd_dt = sysdate
+              where dtlnum = @dtlnum]
+            |
+            list inventory
+             where dtlnum = @dtlnum
+               and wh_id = @wh_id
+            |
+            [select 'X'
+               from poldat_view
+              where polcod = 'USR-UNILEVER'
+                and polvar = 'EVENTS-BATCHING'
+                and polval = 'ENABLED'
+                and rtstr1 = 'INV-STS'
+                and wh_id = nvl(@wh_id, @@wh_id)
+                and rtnum1 = 1
+                and rownum < 2] catch(-1403)
+            |
+            if (@? = 0)
+            {
+                create record
+                 where table = 'uc_inv_sts_hld_info'
+                   and uc_batch_evt_key = @uc_batch_evt_key
+                   and evt_id = 'INV-STS'
+                   and wh_id = nvl(@wh_id, @@wh_id)
+                   and arecod = @arecod
+                   and stoloc = @stoloc
+                   and lodnum = @lodnum
+                   and subnum = @subnum
+                   and dtlnum = @dtlnum
+                   and prtnum = @prtnum
+                   and prt_client_id = @prt_client_id
+                   and orgcod = @orgcod
+                   and revlvl = @revlvl
+                   and lotnum = @lotnum
+                   and sup_lotnum = @sup_lotnum
+                   and supnum = @supnum
+                   and fr_invsts = 'PRLS'
+                   and to_invsts = 'DCNS'
+                   and trnqty = @untqty
+                   and hld_flg = @hld_flg
+                   and mandte = @mandte
+                   and expire_dte = @expire_dte
+                   and reacod = @reacod
+                   and trans_wh_id = nvl(@trans_wh_id, nvl(@wh_id, @@wh_id))
+                   and ins_usr_id = nvl(@user_id, @@user_id)
+                   and bldg_id = @bldg_id
+            }
+            else
+            {
+                sl_log event
+                 where evt_id = 'INV-STS'
+                   and ifd_data_ptr = NULL
+                   and sys_id = 'DCS'
+                   and FR_INVSTS = 'PRLS'
+                   and HSTDST = 'DCNS'
+                   and HSTSRC = 'PRLS'
+                   and PRTNUM = @prtnum
+                   and TRNQTY = @untqty
+                   and arecod = @arecod
+                   and dtlnum = @dtlnum
+                   and hld_flg = @hld_flg
+                   and to_lotnum = @lotnum
+                   and lodnum = @lodnum
+                   and subnum = @subnum
+                   and TO_MANDTE = @mandte
+                   and TO_EXPIRE_DTE = @expdte
+                   and to_invsts = 'DCNS'
+                   and TRANS_WH_ID = @wh_id
+                   and wh_id = @wh_id
+                   and usr_id = 'PRLSJOB'
+                   and stoloc = @stoloc
+            }
+            |
+            write daily transaction
+             where lodnum = @lodnum
+               and subnum = @subnum
+               and dtlnum = @dtlnum
+               and frinvs = 'PRLS'
+               and toinvs = 'DCNS'
+               and fr_arecod = @arecod
+               and to_arecod = @arecod
+               and frstol = @stoloc
+               and tostol = @stoloc
+               and movref = 'VAR_PRLS_RELS'
+               and reacod = @reacod
+               and actcod = 'INVSTSCHG'
+               and usr_id = 'PRLSJOB'
+               and wh_id = @wh_id
+        }
+        else
+        {
+            sl_do Nothing
+        }
+    }
+    else
+    {
+        set return status
+         where status = 0
+    };
+    get session variable
+     where name = 'uc_batch_evt_key' catch(-1403)
+    |
+    if(@uc_batch_evt_key is not null)
+    {
+        send usr batched inventory status transactions
+         where uc_batch_evt_key = @uc_batch_evt_key
+    }   
+}
+]]>
+</local-syntax>
+</command>

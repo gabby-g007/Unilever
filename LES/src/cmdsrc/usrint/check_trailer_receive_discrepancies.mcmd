@@ -1,0 +1,66 @@
+<command>
+
+<name>check trailer receive discrepancies</name>
+
+<description>Check Trailer Receive Discrepancies</description>
+
+<type>Local Syntax</type>
+
+<argument name="wh_id" required="yes" datatype="string"> </argument>
+<argument name="trlr_id" required="yes" datatype="string"> </argument>
+<argument name="trknum" datatype="string"> </argument>
+<argument name="mode" datatype="string"> </argument>
+
+<local-syntax>
+
+<![CDATA[
+        /*
+         * UNI-1078: Katta, Dayakar: 29-Oct-2020
+         * This command was modified to allow the receive status discrepancies as, at UL status on inbound order line
+         * will usually be different from what received
+         * Need to turn the discrepancy checks whether the inbound shipment is system generated or not
+         */
+        [select 'X'
+           from poldat_view
+          where polcod = 'USR-UNILEVER'
+            and polvar = 'RCV-DISCREPANCY'
+            and polval = 'IGNORE-RCVSTS'
+            and wh_id = @wh_id
+            and rtnum1 = 1
+            and rownum < 2] catch(-1403)
+        |
+        if (@? = 0)
+        {
+            check usr trailer receive discrepancies
+        }
+        else
+        {
+            ^check trailer receive discrepancies
+        }
+]]>
+
+
+</local-syntax>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+    This command will check all the invoice lines for a given trailer
+    to determine if there is a difference between the quantity (or catch quantity) identified
+    and the expected quantity (or expected catch quantity).  if any of these conditions exist the command 
+    will return a value of true otherwise false.
+    We recommend trknum(Master Receipt ID) instead of trailer ID because one trailer can 
+    have multiple Master Receipt ID. And the receice discrepancies should be for Master Receipt.
+  </p>
+]]>
+
+</remarks>
+
+<exception value="eOK">There are discrepancies for this trailer.</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">There are no discrepancies found.</exception>
+
+</documentation>
+
+</command>

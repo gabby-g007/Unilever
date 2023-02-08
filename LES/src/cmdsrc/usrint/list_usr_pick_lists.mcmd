@@ -1,0 +1,53 @@
+<command>
+  <name>list usr pick lists</name>
+  <description>List USR Pick Lists</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+  and sortOrderClause = nvl(@sortOrderClause, 'pcklst.list_id')
+|
+[select replace(@filterByClause, 'wgt', 'wgt/16') filterByClause
+   from dual]
+|
+[/*#limit=@offset,@limit,true*/
+ select pcklst.list_id,
+        pcklst.totvol,
+        pcklst.totwgt/16 totwgt,
+        pcklst.last_upd_user_id,
+        pcklst.tot_ordlin,
+        pcklst.tot_item,
+        pcklst.adddte,
+        pcklst.cmpdte,
+	    pcklst.list_sts,
+	    '' as 'D'
+    from pcklst
+   where @filterByClause:raw
+   order by @sortOrderClause:raw]
+	 
+]]>
+</local-syntax>
+
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list the Pick List for the given criteria.
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+
+</command>

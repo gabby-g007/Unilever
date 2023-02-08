@@ -1,0 +1,18 @@
+<command>
+  <name>list usr item family</name>
+  <description>List Usr Item Family</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+[select prtfam.prtfam,
+        dscmst.lngdsc as prtfamdsc
+   from prtfam
+   join dscmst
+     on prtfam.prtfam = dscmst.colval
+    and dscmst.colnam = 'prtfam'
+    and dscmst.locale_id = nvl(@locale_id, @@locale_id)] catch(-1403, 510)
+  
+]]>
+</local-syntax>
+</command>

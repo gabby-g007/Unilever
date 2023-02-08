@@ -1,0 +1,65 @@
+serv_ins_id,serv_action_typ,serv_action_cod,seqnum,rf_frm_id,gui_frm_id,cnfrm_val_var_nam,post_cnfrm_val_cmd,invsts,ems_evt_nam,rpt_id,cmd,hldnum,hldcod,hldpfx,reacod,moddte,mod_usr_id
+INS000000012,PASS,RUNCMD,1,,,,,,,,"publish data
+ where wh_id = @wh_id
+   and trlr_id = @trlr_id
+|
+[select max(rcvtrk.trknum) trknum,
+        trlr.trlr_id,
+        nvl(trlr.yard_loc, @stoloc) yard_loc,
+        inventory_view.stoloc stgloc,
+        count(distinct inventory_view.lodnum) lpncnt,
+        rcvtrk.rcvtrk_stat
+   from rcvtrk
+  inner
+   join rcvinv
+     on rcvtrk.trknum = rcvinv.trknum
+    and rcvtrk.wh_id = rcvinv.wh_id
+  inner
+   join rcvlin
+     on rcvinv.invnum = rcvlin.invnum
+    and rcvinv.wh_id = rcvlin.wh_id
+    and rcvinv.client_id = rcvlin.client_id
+    and rcvinv.supnum = rcvlin.supnum
+  inner
+   join inventory_view
+     on rcvlin.rcvkey = inventory_view.rcvkey
+    and rcvlin.wh_id = inventory_view.wh_id
+  inner
+   join locmst
+     on inventory_view.stoloc = locmst.stoloc
+    and inventory_view.wh_id = locmst.wh_id
+  inner
+   join loc_typ
+     on locmst.loc_typ_id = loc_typ.loc_typ_id
+    and locmst.wh_id = loc_typ.wh_id
+   left outer
+   join trlr
+     on rcvtrk.trlr_id = trlr.trlr_id
+  where rcvtrk.wh_id = @wh_id
+    and trlr.trlr_id = @trlr_id
+    and loc_typ.rcv_stgflg = 1
+    and rcvtrk.rcvtrk_stat = 'C'
+  group by trlr.trlr_id,
+        trlr.yard_loc,
+        inventory_view.stoloc,
+        rcvtrk.rcvtrk_stat] catch(-1403)
+|
+if (@? = 0)
+{
+    [select count(1) wrkcnt
+       from wrkque
+      where srcloc = @stgloc
+        and oprcod = 'STO']
+    |
+    do loop
+     where count = @lpncnt - @wrkcnt
+    |
+    if (@i is not null)
+    {
+        create work
+         where oprcod = 'STO'
+           and lodlvl = 'L'
+           and srcloc = @stgloc
+           and wh_id = @wh_id
+    }
+}",,,,,20220729075417,NOUSER

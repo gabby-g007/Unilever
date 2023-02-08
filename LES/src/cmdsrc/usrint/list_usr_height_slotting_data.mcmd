@@ -1,0 +1,96 @@
+<command>
+  <name>list usr height slotting data</name>
+  <description>Data on items without pickfaces that are going to be case picked</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'min(dataset.start_dte) asc')
+|
+[/*#limit=@offset,@limit,true*/
+select dataset.prtnum prtnum,
+        dataset.lngdsc,
+        dataset.prtfam,
+        dataset.hgt,
+        dataset.grswgt,
+        dataset.len,
+        dataset.wid,
+        dataset.ftpcod,
+        min(dataset.start_dte) Start_Date
+   from (select prtmst.prtnum,
+                prtdsc.lngdsc,
+                pc.hgt,
+                pc.grswgt,
+                pc.len,
+                pc.wid,
+                prtftp.ftpcod,
+                prtmst.prtfam,
+                ord_line.ordnum,
+                appt.car_move_id,
+                appt.start_dte,
+                to_char(ord_line.ordqty / prtftp_dtl.untqty, '999.99') Qty
+           from ord_line
+           join shipment_line
+             on ord_line.ordnum = shipment_line.ordnum
+            and ord_line.ordlin = shipment_line.ordlin
+			and ord_line.ordsln = shipment_line.ordsln
+           join shipment
+             on shipment_line.ship_id = shipment.ship_id
+           join stop
+             on shipment.stop_id = stop.stop_id
+           join car_move
+             on stop.car_move_id = car_move.car_move_id
+           left outer
+           join appt
+             on car_move.car_move_id = appt.car_move_id
+           join adrmst
+             on ord_line.st_adr_id = adrmst.adr_id
+           join prtmst
+             on ord_line.prtnum = prtmst.prtnum
+            and ord_line.wh_id = prtmst.wh_id_tmpl
+           join prtftp
+             on prtmst.prtnum = prtftp.prtnum
+            and prtmst.wh_id_tmpl = prtftp.wh_id
+           join prtftp_dtl
+             on prtftp.prtnum = prtftp_dtl.prtnum
+            and prtftp.wh_id = prtftp_dtl.wh_id
+           join prtftp_dtl pc
+             on prtftp.prtnum = pc.prtnum
+            and prtftp.wh_id = pc.wh_id
+           join prtdsc
+             on prtmst.prtnum + '|' + prtmst.prt_client_id + '|' + prtmst.wh_id_tmpl = prtdsc.colval
+          where shipment.shpsts in ('R', 'I')
+            and prtftp.defftp_flg = 1
+            and prtftp_dtl.uomcod = 'PA'
+            and pc.cas_flg = 1
+            and not exists(select 'x'
+                             from rplcfg
+                            where rplcfg.prtnum = ord_line.prtnum)
+          group by prtmst.prtnum,
+                prtdsc.lngdsc,
+                pc.hgt,
+                pc.grswgt,
+                pc.len,
+                pc.wid,
+                prtftp.ftpcod,
+                prtmst.prtfam,
+                ord_line.ordnum,
+                appt.car_move_id,
+                appt.start_dte,
+                to_char(ord_line.ordqty / prtftp_dtl.untqty, '999.99')) dataset
+				where @filterByClause:raw
+  group by dataset.prtnum,
+        dataset.lngdsc,
+        dataset.prtfam,
+        dataset.hgt,
+        dataset.grswgt,
+        dataset.len,
+        dataset.wid,
+        dataset.ftpcod
+		order by @sortOrderClause:raw]catch(@?)
+  ]]>
+</local-syntax>
+</command>

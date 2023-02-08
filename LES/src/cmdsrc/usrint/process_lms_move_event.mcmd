@@ -1,0 +1,19 @@
+<command>
+  <name>process lms move event</name>
+  <description>process lms move event</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+if (@oprcod = 'CPCK')
+{
+    hide stack variable
+     where name = 'actcod'
+    |
+    publish data
+     where actcod = 'CPCK'
+}
+|
+^process lms move event
+]]>
+</local-syntax>
+</command>

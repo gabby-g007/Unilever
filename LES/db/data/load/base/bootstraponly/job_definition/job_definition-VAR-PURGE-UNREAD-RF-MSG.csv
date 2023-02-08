@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+VAR-PURGE-UNREAD-RF-MSG,SERVER2,Update old Unread RF message,1,timer,"[select count(*) cnt from mtfmsg_delv where rcvflg = 0 and rcvdte is null and insdte < (sysdate - (0.5 / 24))] | if (@cnt > 1){[update mtfmsg_delv set rcvflg = 1, rcvdte = sysdate where rcvflg = 0 and rcvdte is null and insdte < (sysdate - (0.5 / 24))] catch(@?)} else { sl_do nothing }",$LESDIR/log/var_purge_rf-1.log,,0,,0,1800,dsc_data

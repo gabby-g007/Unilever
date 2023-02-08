@@ -1,0 +1,37 @@
+<command>
+  <name>list usr pick list of cluster pick</name>
+  <description>list usr pick list of cluster pick</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and sortOrderClause = nvl(@sortOrderClause, 'pck.list_seqnum')
+   and wh_id = nvl(@wh_id, @@wh_id)
+|
+[/*#limit=@offset,@limit,true*/
+select wrk.reqnum,
+        pck.list_seqnum,
+        pck.asset_slot,
+        pck.prtnum,
+        prt.lngdsc description,
+        pck.ftpcod,
+        pck.skip_cnt,
+        pck.srcare,
+        pck.srcloc
+   from pckwrk_view pck,
+        wrkque wrk,
+        prtdsc prt
+  where pck.list_id = wrk.list_id
+    and pck.wh_id = @wh_id
+    and pck.wh_id = wrk.wh_id
+    and pck.prtnum || '|' || pck.client_id || '|' || pck.wh_id = prt.colval
+    and prt.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+    and @filterByClause:raw
+  order by @sortOrderClause:raw] catch(-1403, 510)
+  
+]]>
+</local-syntax>
+</command>

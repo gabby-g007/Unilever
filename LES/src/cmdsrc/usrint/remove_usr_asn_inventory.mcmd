@@ -1,0 +1,86 @@
+<command>
+<name>remove usr asn inventory</name>
+<description>Remove USR ASN Inventory</description>
+<type>Local Syntax</type>
+
+<local-syntax>
+<![CDATA[
+
+/*
+ * UNI-928 (Old Jira:UNI-186): 26-Oct-2021
+ * This command gets called from remove asn inventory when the custom policy USR-UNILEVER/CAPTURE-MISSING-ASN-LPNS/ENABLED  * is installed.
+ */
+list inventory loads
+ where asnflg = 1
+   and stoloc = @trknum
+   and wh_id = @wh_id catch(@?)
+|
+if (@? != -1403)
+{
+    {
+        [select inventory_view.prtnum,
+                rcvlin.invlin,
+                inventory_view.lotnum,
+                inventory_view.invsts,
+                sum(inventory_view.untqty) untqty
+           from inventory_view
+           join rcvlin
+             on rcvlin.rcvkey = inventory_view.rcvkey
+            and rcvlin.wh_id = inventory_view.wh_id
+          where inventory_view.lodnum = @lodnum
+            and rcvlin.trknum = @trknum
+            and rcvlin.wh_id = @wh_id
+          group by inventory_view.prtnum,
+                rcvlin.invlin,
+                inventory_view.lotnum,
+                inventory_view.invsts]
+        |
+        write daily transaction
+         where actcod = 'UC_ASN_REMOVE'
+           and lodnum = @lodnum
+           and trlr_id = @trlr_id
+           and carcod = @carcod
+           and usr_id = nvl(@usr_id, @@usr_id)
+           and devcod = nvl(@devcod, @@devcod)
+           and prtnum = @prtnum
+           and lotnum = @lotnum
+           and trnqty = @untqty
+           and adj_ref1 = @invlin
+           and traknm = @trknum
+           and frinvs = @invsts
+    };
+
+    /*
+     ** For every load returned here check and remove any
+     ** assets associated with this load before we remove the load.
+     */
+    remove asset for identified load
+     where lodnum = @lodnum
+    |
+    /* For every lodnum returned, remove the remaining asn inventory  */
+    remove load
+     where lodnum = @lodnum
+}
+
+]]>
+</local-syntax>
+
+<documentation>
+<remarks>
+<![CDATA[
+  <p>
+    This command is used to delete the inventory record for the asn. 
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eINT_INVDTL_RECORD_NOT_FOUND">
+    No Matching Inventory Detail found for the asn records.
+</exception>
+
+<seealso cref="change inventory for process host receipt asn"></seealso>
+<seealso cref="remove asn inventory"></seealso>
+
+</documentation>
+</command>

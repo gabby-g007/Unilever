@@ -1,0 +1,147 @@
+<command>
+  <name>process inventory hold change</name>
+  <description>Changes the inventory hold data for specific inventory details.</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+/*
+ * UNI-1032: Katta, Dayakar: November 19,2021
+ * This is a pre trigger on the command to save the no.of inventory details that being changed
+ * If the policy to batch the INV-HLD events is enabled and there are multiple details.
+ */
+[select 'X'
+   from poldat_view
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'EVENTS-BATCHING'
+    and polval = 'ENABLED'
+    and rtstr1 = 'INV-HLD'
+    and wh_id = nvl(@wh_id, @@wh_id)
+    and rtnum1 = 1
+    and rownum < 2] catch(-1403)
+|
+if (@dtlnum_list is not null and @? = 0)
+{
+    [select (len(@dtlnum_list) - len(replace(@dtlnum_list, ',', ''))) + 1 total_details
+       from dual]
+    |
+    save session variable
+     where name = 'uc_tot_dtl'
+       and value = @total_details
+    |
+    save session variable
+     where name = 'uc_cur_dtl'
+       and value = 0
+    |
+    generate next number
+     where numcod = 'uc_batch_evt_key'
+    |
+    save session variable
+     where name = 'uc_batch_evt_key'
+       and value = @nxtnum
+}
+else if (@? = 0 and @dtlnum_list is null and @dtlnum is null and @acttyp = 'R')
+{
+    list inventory change information
+     where inc_wkoflg = 0
+       and srch_comps_flg = 0
+       and hldpfx = @prc_hldpfx
+       and hldnum = @prc_hldnum
+       and wh_id = @wh_id
+       and acttyp = 'R'
+       and show_in_transit_flg = @show_in_transit_flg >> res
+    |
+    save session variable
+     where name = 'uc_tot_dtl'
+       and value = rowcount(@res)
+    |
+    save session variable
+     where name = 'uc_cur_dtl'
+       and value = 0
+    |
+    generate next number
+     where numcod = 'uc_batch_evt_key'
+    |
+    save session variable
+     where name = 'uc_batch_evt_key'
+       and value = @nxtnum
+}
+|
+^process inventory hold change
+ where @*
+]]>
+</local-syntax>
+<argument name="prc_hldpfx" datatype="string"> </argument>
+<argument name="prc_hldpfx_list" datatype="string"> </argument>
+<argument name="prc_hldnum" datatype="string"> </argument>
+<argument name="prc_hldnum_list" datatype="string"> </argument>
+<argument name="acttyp" datatype="string"> </argument>
+<argument name="prc_reacod" datatype="string"> </argument>
+<argument name="to_invsts" datatype="string"> </argument>
+<argument name="to_invsts_list" datatype="string"> </argument>
+<argument name="dtlnum" datatype="string"> </argument>
+<argument name="dtlnum_list" datatype="string"> </argument>
+<argument name="eval_dtcflg" datatype="integer"> </argument>
+<argument name="hld_usr_id" datatype="string"> </argument>
+<argument name="cascade_hold_flg" datatype="integer"> </argument>
+<argument name="wh_id" datatype="string"> </argument>
+<argument name="mode" datatype="string"> </argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+    This command will either apply or release inventory holds to specified 
+    inventory identifiers.  It will also re-insert the inventory back into
+    circulation by placing a new inventory status on it (if releasing the
+    hold).  Date controlled inventory can be re-evaluated as to how it will
+    rejoin its aging profile automatically by sending in the eval_dtcflg as
+    true.
+  </p>
+  <p>
+    <str>NOTE:</str> This command will pass all parameters along to 
+    "list inventory change information" if needed.  If the proper parameters
+    weren't passed in to be able to get the details, the list command will
+    be called and those results are used to perform the change.
+  </p>
+  <p>
+  If cascade_hold_flg is set to 0, then holds applied to inventory will
+  only affect the detail specified, and not the entire parent container.
+  Default behavior is to cascade holds across parent containers.
+  </p>
+  <p>
+  Since changes to holds can result in changing inventory status, when called 
+  from GUI system will validate for authorization to change inventory staus.
+  mode parameter will be set to GUI to enable validation of inventory status 
+  changes.
+  </p>  
+]]>
+</remarks>
+
+<retcol name="exec_sts" type="COMTYP_INT">Execution status.  This command will return all rows that it attempts
+  to change.  If it fails, it will not fail the entire command, but 
+  will return the status in this field.  All triggers need to take this
+  into account as this command will normally succeed regardless of what
+  fails in the internal processing.</retcol>
+<retcol name="bldg_id" type="COMTYP_CHAR">Building Id</retcol>
+<retcol name="arecod" type="COMTYP_CHAR">Area Code</retcol>
+<retcol name="stoloc" type="COMTYP_CHAR">Storage Location</retcol>
+<retcol name="lodnum" type="COMTYP_CHAR">Load Number</retcol>
+<retcol name="subnum" type="COMTYP_CHAR">Subload Number</retcol>
+<retcol name="dtlnum" type="COMTYP_CHAR">Detail Number</retcol>
+<retcol name="prtnum" type="COMTYP_CHAR">Part Number</retcol>
+<retcol name="prt_client_id" type="COMTYP_CHAR">Part Client ID</retcol>
+<retcol name="trnqty" type="COMTYP_INTEGER">Affected quantity</retcol>
+<retcol name="fr_invsts" type="COMTYP_CHAR">Old Inventory Status</retcol>
+<retcol name="to_invsts" type="COMTYP_CHAR">New Inventory Status</retcol>
+<retcol name="reacod" type="COMTYP_CHAR">Reason code applied</retcol>
+
+<exception value="eOK">Normal successful completion</exception>
+
+<seealso cref="list inventory change information"> </seealso>
+<seealso cref="process inventory hold change"> </seealso>
+
+</documentation>
+
+</command>

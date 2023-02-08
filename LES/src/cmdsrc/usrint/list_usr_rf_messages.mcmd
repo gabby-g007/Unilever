@@ -1,0 +1,56 @@
+<command>
+<name>list usr rf messages</name>
+<description>List USR RF Messages</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'mtfmsg_delv.moddte')
+|
+[/*#limit=@offset,@limit,true*/
+ select mtfmsg.msg_id,
+        decode(mtfmsg.msgtyp, 3, 'Message', 1, 'Shut Down', 2, 'Message and Shut Down', to_char(mtfmsg.msgtyp)) msgtyp,
+        mtfmsg.msg,
+        mtfmsg_delv.devcod,
+        mtfmsg_delv.wh_id,
+        mtfmsg_delv.rcvflg,
+        mtfmsg_delv.rcvdte,
+        mtfmsg_delv.expdte,
+        mtfmsg_delv.mod_usr_id,
+        mtfmsg_delv.moddte,
+        mtfmsg.mod_usr_id ins_usr_id,
+        mtfmsg_delv.insdte,
+        '' as 'D'
+   from mtfmsg
+   join mtfmsg_delv
+     on mtfmsg.msg_id = mtfmsg_delv.msg_id
+  where @+mtfmsg_delv.wh_id
+    and @filterByClause:raw
+    and @*
+  order by @sortOrderClause:raw]
+   
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list the RF messages sent in in the given duration.
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

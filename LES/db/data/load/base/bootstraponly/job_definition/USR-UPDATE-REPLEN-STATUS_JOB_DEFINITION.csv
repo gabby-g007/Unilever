@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-UPDATE-REPLEN-STATUS,*,Update replen status when PF Inv less than 16,0,timer,update usr replen status,$LESDIR/log/updatereplenstatus.log,,0,,0,300,usr_data

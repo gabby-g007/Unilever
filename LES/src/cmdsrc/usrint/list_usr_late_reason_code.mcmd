@@ -1,0 +1,17 @@
+<command>
+  <name>list usr late reason code</name>
+  <description>List Late Reason Code</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+ list reason code groups for lookup
+  where reagrp = 'LATE_REASON'
+ |
+ publish data
+  where late_reacod = @reacod
+    and late_reacod_txt = @lngdsc
+  
+]]>
+</local-syntax>
+</command>

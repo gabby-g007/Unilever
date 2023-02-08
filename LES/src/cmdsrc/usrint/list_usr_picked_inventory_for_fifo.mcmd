@@ -1,0 +1,45 @@
+<command>
+<name>list usr picked inventory for fifo</name>
+<description>List USR Picked Inventory For FIFO</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'all_inventory_view.prtnum')
+|
+[/*#limit=@offset,@limit,true*/
+ select all_inventory_view.prtnum,
+        max(fifdte) fifdte,
+        '' as 'D'
+   from all_inventory_view
+  where @filterByClause:raw
+    and @+wh_id
+    and @*
+  group by prtnum
+  order by @sortOrderClause:raw]
+
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list the Picked Inventory's Max FIFO date by Item Number
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

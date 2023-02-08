@@ -1,0 +1,26 @@
+<command>
+  <name>process host receipt invoice</name>
+  <description>Process Host Receipt Invoice</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+/* This command has been created as a part of Receipt Authorization download - Auto creation of supplier to create non trusted supplier if not available in WMS which is received during receipt authorization download */
+list suppliers
+ where supnum = @supnum
+   and wh_id = @wh_id
+   and client_id = @client_id catch(-1403)
+|
+if (@? = -1403)
+{
+    Create Supplier
+     where supnum = @supnum
+       and wh_id = @wh_id
+       and client_id = @client_id
+       and trust_flg = '0'
+}
+|
+^process host receipt invoice
+ where @*
+]]>
+</local-syntax>
+</command>

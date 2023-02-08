@@ -1,0 +1,2 @@
+evt_nam,priority,ack_flg,exp_flg,exp_tm,esc_flg,esc_tm,esc_evt,prm_lck_flg,moddte,mod_usr_id,grp_nam
+USR-INVENTORY-DETAILS-REPORT,1,0,0,0,0,0,,0,,NOUSER,usr_data

@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+UC_PURGE_UC_INV_STS_HLD_INFO,,Purge Custom Table UC_PURGE_UC_INV_STS_HLD_INFO,1,cron,[delete from uc_inv_sts_hld_info where ins_dt < sysdate -15],$LESDIR/log/TranBatchingPurge.log,,0,0 0 2 * * ?,,,UNI-1081

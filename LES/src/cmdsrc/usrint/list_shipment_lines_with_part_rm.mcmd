@@ -1,0 +1,23 @@
+<command>
+  <name>list shipment lines with part rm</name>
+  <description>Reason Code Swap</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+^list shipment lines with part rm
+where ship_id = @ship_id
+and ordnum = @ordnum
+and client_id = @client_id 
+|
+[select CASE 
+WHEN @ordlin_chg_reacod = 'WWC' THEN 'WST'
+ELSE @ordlin_chg_reacod
+END AS ordlin_chg_reacod_new
+from dual]
+|
+filter data
+where moca_filter_level = 2
+and ordlin_chg_reacod = @ordlin_chg_reacod_new
+]]>
+</local-syntax>
+</command>

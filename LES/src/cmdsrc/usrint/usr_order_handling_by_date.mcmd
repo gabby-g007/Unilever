@@ -1,0 +1,128 @@
+<command>
+  <name>usr order handling by date</name>
+  <description>usr order handling by date</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'distribution')
+|
+[/*#limit=@offset,@limit,true*/
+ select d.Distribution,
+        d.Total_Orders,
+        d.Order_Lines,
+        d.Cases_Shipped,
+        d.Pallets_Shipped
+   from (select case when (order_summary.CS <= 100 and order_summary.OL <= 5) then 'Order Cases <= 100 and Lines <= 5'
+                     when (order_summary.CS <= 100 and order_summary.OL <= 10) then 'Order Cases <= 100 and Lines <= 10'
+                     when (order_summary.CS <= 100 and order_summary.OL <= 15) then 'Order Cases <= 100 and Lines <= 15'
+                     when (order_summary.CS <= 100 and order_summary.OL > 15) then 'Order Cases <= 100 and Lines > 15'
+                     when (order_summary.CS <= 200 and order_summary.OL <= 5) then 'Order Cases <= 200 and Lines <= 5'
+                     when (order_summary.CS <= 200 and order_summary.OL <= 10) then 'Order Cases <= 200 and Lines <= 10'
+                     when (order_summary.CS <= 200 and order_summary.OL <= 15) then 'Order Cases <= 200 and Lines <= 15'
+                     when (order_summary.CS <= 200 and order_summary.OL > 15) then 'Order Cases <= 200 and Lines > 15'
+                     when (order_summary.CS <= 300 and order_summary.OL <= 5) then 'Order Cases <= 300 and Lines <= 5'
+                     when (order_summary.CS <= 300 and order_summary.OL <= 10) then 'Order Cases <= 300 and Lines <= 10'
+                     when (order_summary.CS <= 300 and order_summary.OL <= 15) then 'Order Cases <= 300 and Lines <= 15'
+                     when (order_summary.CS <= 300 and order_summary.OL > 15) then 'Order Cases <= 300 and Lines > 15'
+                     when order_summary.OL <= 5 then 'Order Cases > 300 and Lines <= 5'
+                     when order_summary.OL <= 10 then 'Order Cases > 300 and Lines <= 10'
+                     when order_summary.OL <= 15 then 'Order Cases > 300 and Lines <= 15'
+                     else 'Order Cases > 300 and Lines > 15'
+                end as Distribution,
+                count(order_summary.ordnum) as "Total_Orders",
+                sum(order_summary.OL) as "Order_Lines",
+                sum(order_summary.CS) as "Cases_Shipped",
+                sum(order_pallets.PS) as "Pallets_Shipped"
+           from (select ordnum,
+                        count(ordlin) as OL,
+                        sum(shpqty) as CS
+                   from ord_line
+                  where shpqty > 0
+                    and wh_id = @wh_id
+                  group by ordnum) order_summary,
+                (select sl.ordnum,
+                        count(distinct (invlod_hist.lodnum)) as PS
+                   from shipment_line sl,
+                        invdtl_hist,
+                        invsub_hist,
+                        invlod_hist,
+                        ship_struct_view ssv
+                  where sl.wh_id = @wh_id
+                    and sl.ship_id = ssv.ship_id
+                    and sl.ship_line_id = invdtl_hist.ship_line_id
+                    and invdtl_hist.subnum = invsub_hist.subnum
+                    and invsub_hist.lodnum = invlod_hist.lodnum
+                    and ssv.shpsts = 'C'
+                    and ssv.trlr_stat = 'D'
+                    and @filterByClause:raw
+                  group by sl.ordnum) order_pallets
+          where order_summary.ordnum = order_pallets.ordnum
+          group by grouping sets((), (case when (order_summary.CS <= 100 and order_summary.OL <= 5) then 'Order Cases <= 100 and Lines <= 5'
+                                           when (order_summary.CS <= 100 and order_summary.OL <= 10) then 'Order Cases <= 100 and Lines <= 10'
+                                           when (order_summary.CS <= 100 and order_summary.OL <= 15) then 'Order Cases <= 100 and Lines <= 15'
+                                           when (order_summary.CS <= 100 and order_summary.OL > 15) then 'Order Cases <= 100 and Lines > 15'
+                                           when (order_summary.CS <= 200 and order_summary.OL <= 5) then 'Order Cases <= 200 and Lines <= 5'
+                                           when (order_summary.CS <= 200 and order_summary.OL <= 10) then 'Order Cases <= 200 and Lines <= 10'
+                                           when (order_summary.CS <= 200 and order_summary.OL <= 15) then 'Order Cases <= 200 and Lines <= 15'
+                                           when (order_summary.CS <= 200 and order_summary.OL > 15) then 'Order Cases <= 200 and Lines > 15'
+                                           when (order_summary.CS <= 300 and order_summary.OL <= 5) then 'Order Cases <= 300 and Lines <= 5'
+                                           when (order_summary.CS <= 300 and order_summary.OL <= 10) then 'Order Cases <= 300 and Lines <= 10'
+                                           when (order_summary.CS <= 300 and order_summary.OL <= 15) then 'Order Cases <= 300 and Lines <= 15'
+                                           when (order_summary.CS <= 300 and order_summary.OL > 15) then 'Order Cases <= 300 and Lines > 15'
+                                           when order_summary.OL <= 5 then 'Order Cases > 300 and Lines <= 5'
+                                           when order_summary.OL <= 10 then 'Order Cases > 300 and Lines <= 10'
+                                           when order_summary.OL <= 15 then 'Order Cases > 300 and Lines <= 15'
+                                           else 'Order Cases > 300 and Lines > 15'
+                                      end))
+         union
+         select case when order_summary.OL is not null then 'Total'
+                end as Distribution,
+                count(order_summary.ordnum) as "Total_Orders",
+                sum(order_summary.OL) as "Order_Lines",
+                sum(order_summary.CS) as "Cases_Shipped",
+                sum(order_pallets.PS) as "Pallets_Shipped"
+           from (select ordnum,
+                        count(ordlin) as OL,
+                        sum(shpqty) as CS
+                   from ord_line
+                  where shpqty > 0
+                    and wh_id = @wh_id
+                  group by ordnum) order_summary,
+                (select sl.ordnum,
+                        count(distinct (invlod_hist.lodnum)) as PS
+                   from shipment_line sl,
+                        invdtl_hist,
+                        invsub_hist,
+                        invlod_hist,
+                        ship_struct_view ssv
+                  where sl.wh_id = @wh_id
+                    and sl.ship_id = ssv.ship_id
+                    and sl.ship_line_id = invdtl_hist.ship_line_id
+                    and invdtl_hist.subnum = invsub_hist.subnum
+                    and invsub_hist.lodnum = invlod_hist.lodnum
+                    and ssv.shpsts = 'C'
+                    and ssv.trlr_stat = 'D'
+                    and @filterByClause:raw
+                  group by sl.ordnum) order_pallets
+          where order_summary.ordnum = order_pallets.ordnum
+          group by grouping sets((), (case when order_summary.OL is not null then 'Total'
+                                      end))) d
+  order by @sortOrderClause:raw] catch(-1403, 510)
+|
+if (@Distribution is not null)
+{
+    publish data
+     where distribution = @distribution
+       and total_orders = @Total_Orders
+       and order_lines = @Order_Lines
+       and cases_shipped = @Cases_Shipped
+       and pallets_shipped = @Pallets_Shipped
+}
+]]>
+</local-syntax>
+</command>

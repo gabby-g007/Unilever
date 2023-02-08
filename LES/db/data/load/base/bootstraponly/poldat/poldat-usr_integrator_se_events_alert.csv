@@ -1,0 +1,4 @@
+polcod,polvar,polval,wh_id_tmpl,srtseq,rtstr1,rtstr2,rtnum1,rtnum2,rtflt1,rtflt2,moddte,mod_usr_id,grp_nam
+EMS,EVENTS,USR-INTEGRATOR-SE-EVENTS-ALERT,----,1,raise usr ems alert for send error integrator events,,1,0,0,0,11/8/2021 8:45:13 PM,VISHNU,
+USR-UNILEVER,RETRIGGER-SE-EVENTS,ATTEMPTS,----,0,<rtnum1 = No. of attempts for retrigger>,,5,0,0,0,11/8/2021 9:10:04 PM,VISHNU,
+USR-UNILEVER,RETRIGGER-SE-EVENTS,ENABLED,----,0,2021-11-17 17:40:26,<rtstr1 = job lastrun time>,1,0,0,0,,,

@@ -1,0 +1,5 @@
+<trigger>
+  <name>log_seamles_event</name>
+  <on-command>process inventory hold change</on-command>
+  <disable>yes</disable>
+</trigger>

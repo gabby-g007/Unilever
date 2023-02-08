@@ -1,0 +1,177 @@
+<trigger>
+  <name>usr trigger intransit status changes</name>
+  <on-command>close receive truck</on-command>
+  <description>usr trigger intransit status changes</description>
+  <fire-sequence>9999</fire-sequence>
+  <local-syntax>
+<![CDATA[
+publish data
+ where trknum = @trknum
+|
+/*
+ * Katta, Dayakar: 2 Dec'2021
+ * Command has been modified to batch the INV-STS event by item/lot combination and send one event instead one for each LPN
+ * When the new custom policy is enabled to batch the INV-STS events
+ */
+[select 'X'
+   from poldat_view
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'EVENTS-BATCHING'
+    and polval = 'ENABLED'
+    and rtstr1 = 'INV-STS'
+    and wh_id = nvl(@wh_id, @@wh_id)
+    and rtnum1 = 1
+    and rownum < 2] catch(-1403)
+|
+if (@? = 0)
+{
+    [select uc_traceability.wh_id,
+            uc_traceability.event_id,
+            uc_traceability.prtnum,
+            uc_traceability.fr_invsts,
+            uc_traceability.to_invsts,
+            uc_traceability.lotnum,
+            inventory_view.hld_flg,
+            bldg_mst.business_unt,
+            min(uc_traceability.insdte) insdte,
+            sum(uc_traceability.trnqty) trnqty,
+            decode(count(distinct aremst.arecod), 1, max(aremst.arecod), 0, '', '*MULT*') arecod,
+            decode(count(distinct inventory_view.stoloc), 1, max(inventory_view.stoloc), 0, '', '*MULT*') stoloc,
+            max(inventory_view.lodnum) lodnum,
+            max(inventory_view.subnum) subnum,
+            decode(count(distinct inventory_view.dtlnum), 1, max(inventory_view.dtlnum), 0, '', '*MULT*') dtlnum,
+            decode(count(distinct inventory_view.mandte), 1, max(inventory_view.mandte), '') mandte,
+            decode(count(distinct inventory_view.expire_dte), 1, max(inventory_view.expire_dte), '') expire_dte
+       from uc_traceability
+       join inventory_view
+         on inventory_view.lodnum = uc_traceability.lodnum
+        and inventory_view.wh_id = uc_traceability.wh_id
+       join locmst
+         on locmst.stoloc = inventory_view.stoloc
+        and locmst.wh_id = inventory_view.wh_id
+       join aremst
+         on aremst.arecod = locmst.arecod
+        and aremst.wh_id = locmst.wh_id
+       join bldg_mst
+         on aremst.bldg_id = bldg_mst.bldg_id
+        and aremst.wh_id = bldg_mst.wh_id
+      where uc_traceability.stoloc = @trknum
+        and uc_traceability.fr_invsts <> uc_traceability.to_invsts
+      group by uc_traceability.wh_id,
+            uc_traceability.event_id,
+            uc_traceability.prtnum,
+            uc_traceability.fr_invsts,
+            uc_traceability.to_invsts,
+            uc_traceability.lotnum,
+            inventory_view.hld_flg,
+            bldg_mst.business_unt
+      order by min(uc_traceability.insdte) asc] catch(@?)
+    |
+    if (@? = 0)
+    {
+        go to sleep
+         where time = 2
+        |
+        get integrator system id
+         where systyp = 'WMD'
+        |
+        sl_log event
+         where evt_id = 'INV-STS'
+           and ifd_data_ptr = NULL
+           and sys_id = @sys_id
+           and lodnum = @lodnum
+           and subnum = @subnum
+           and dtlnum = @dtlnum
+           and arecod = @arecod
+           and fr_orgcod = '----'
+           and fr_revlvl = '----'
+           and to_revlvl = '----'
+           and wh_id = @wh_id
+           and prtnum = @prtnum
+           and stoloc = @stoloc
+           and prt_client_id = '----'
+           and trnqty = @trnqty
+           and fr_invsts = @fr_invsts
+           and to_invsts = @to_invsts
+           and supnum = ''
+           and hstsrc = @fr_invsts
+           and hstdst = @to_invsts
+           and hld_flg = @hld_flg
+           and fr_sup_lotnum = ''
+           and to_expire_dte = @expire_dte
+           and to_lotnum = @lotnum
+           and fr_lotnum = @lotnum
+           and to_mandte = @mandte
+           and reacod = @reacod
+           and trans_wh_id = nvl(@trans_wh_id, nvl(@wh_id, @@wh_id))
+           and usr_id = nvl(@usr_id, @@usr_id)
+    }
+}
+else
+{
+    [select stoloc,
+            wh_id,
+            lodnum,
+            subnum,
+            prtnum,
+            fr_invsts,
+            to_invsts,
+            lotnum,
+            insdte,
+            arecod,
+            trnqty
+       from uc_traceability
+      where stoloc = @trknum
+        and fr_invsts <> to_invsts
+      order by insdte asc] catch(@?)
+    |
+    if (@? = 0)
+    {
+        [SELECT lodnum,
+                subnum,
+                dtlnum,
+                mandte,
+                expire_dte,
+                hld_flg,
+                stoloc
+           from inventory_view
+          where lodnum = @lodnum] catch(@?)
+        |
+        go to sleep
+         where time = 2
+        |
+        sl_log event
+         where evt_id = 'INV-STS'
+           and ifd_data_ptr = NULL
+           and sys_id = 'DCS'
+           and lodnum = @lodnum
+           and subnum = @subnum
+           and dtlnum = @dtlnum
+           and arecod = @arecod
+           and fr_orgcod = '----'
+           and fr_revlvl = '----'
+           and to_revlvl = '----'
+           and wh_id = '154'
+           and prtnum = @prtnum
+           and stoloc = @stoloc
+           and prt_client_id = '----'
+           and trnqty = @trnqty
+           and fr_invsts = @fr_invsts
+           and to_invsts = @to_invsts
+           and supnum = ''
+           and hstsrc = @fr_invsts
+           and hstdst = @to_invsts
+           and hld_flg = @hld_flg
+           and fr_sup_lotnum = ''
+           and to_expire_dte = @expire_dte
+           and to_lotnum = @lotnum
+           and fr_lotnum = @lotnum
+           and to_mandte = @mandte
+           and reacod = @reacod
+           and trans_wh_id = nvl(@trans_wh_id, nvl(@wh_id, @@wh_id))
+           and usr_id = nvl(@usr_id, @@usr_id)
+    }
+}
+]]>
+</local-syntax>
+</trigger>

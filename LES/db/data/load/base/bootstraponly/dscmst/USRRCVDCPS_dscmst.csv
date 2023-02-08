@@ -1,0 +1,12 @@
+colnam,colval,locale_id,lngdsc,short_dsc,grp_nam
+"rpt_id","USRRCVDCPS","US_ENGLISH","EnRoute Receiving Report","","usr_enroute_report"
+"reacod","RD06","US_ENGLISH","Item Mis-Match","","usr_enroute_report"
+"reacod","RD11","US_ENGLISH","Item Not In Receipt","","usr_enroute_report"
+"reacod","RD10","US_ENGLISH","Load Not Received","","usr_enroute_report"
+"reacod","RD03","US_ENGLISH","Lot Mis-Match","","usr_enroute_report"
+"reacod","RD02","US_ENGLISH","Overage","","usr_enroute_report"
+"reacod","RD08","US_ENGLISH","Overage / Item Mis-Match","","usr_enroute_report"
+"reacod","RD05","US_ENGLISH","Overage / Lot Mis-Match","","usr_enroute_report"
+"reacod","RD01","US_ENGLISH","Shortage","","usr_enroute_report"
+"reacod","RD07","US_ENGLISH","Shortage / Item Mis-Match","","usr_enroute_report"
+"reacod","RD04","US_ENGLISH","Shortage / Lot Mis-Match","","usr_enroute_report"

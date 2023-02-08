@@ -1,0 +1,60 @@
+<command>
+<name>remove asn inventory</name>
+<description>Remove ASN Inventory</description>
+<type>Local Syntax</type>
+
+<local-syntax>
+<![CDATA[
+
+/*
+ * UNI-928 (Old Jira:UNI-186): 26-Oct-2021
+ * This wrapper on 'remove asn inventory' will retrieve the ASN lpns that are not received from the
+ * Inbound shipment and write custom activity 'UC_ASN_REMOVE' for each LPN into dlytrn for the tracking purpose.
+ * Standard command that removes the ASN LPNs is missing to write some of data required for UL reporting.
+ */
+[select distinct 'x'
+   from poldat_view
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'CAPTURE-MISSING-ASN-LPNS'
+    and polval = 'ENABLED'
+    and rtnum1 = 1
+    and wh_id = @wh_id] catch(-1403)
+|
+if (@? = 0 and @trknum is not null)
+{
+    remove usr asn inventory
+     where @*
+}
+else
+{
+    ^remove asn inventory
+     where @*
+}
+
+]]>
+</local-syntax>
+
+<documentation>
+<remarks>
+<![CDATA[
+  <p>
+    This command is used to delete the inventory record for the asn. 
+    
+    If difqty is passed, command will delete that mutch untqty from the
+    invdtl for the particular record. This can be used to reduce the 
+    inventory quantity in invdtl.
+    
+    If an identifier is passed in, delete that asn inventory.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eINT_INVDTL_RECORD_NOT_FOUND">
+    No Matching Inventory Detail found for the asn records.
+</exception>
+
+<seealso cref="change inventory for process host receipt asn"></seealso>
+
+</documentation>
+</command>

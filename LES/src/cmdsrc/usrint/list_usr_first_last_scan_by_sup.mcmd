@@ -1,0 +1,52 @@
+<command>
+<name>list usr first last scan by sup</name>
+<description>List USR First Last Scan BY Supervisor</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and sortOrderClause = nvl(@sortOrderClause, 'dlytrn.usr_id')
+|
+[/*#limit=@offset,@limit,true*/
+ select dlytrn.usr_id,
+        users_view.first_name,
+        users_view.last_name,
+        users_view.mc_supervisor_id,
+        min(dlytrn.trndte) oldest_trndte,
+        max(dlytrn.trndte) latest_trndte,
+        '' as 'D'
+   from dlytrn
+   join users_view
+     on dlytrn.usr_id = users_view.usr_id
+  where @filterByClause:raw
+  group by dlytrn.usr_id,
+        users_view.first_name,
+        users_view.last_name,
+        users_view.mc_supervisor_id
+  order by @sortOrderClause:raw]
+
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list the First and Last Scan by Supervisor.
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+
+</command>

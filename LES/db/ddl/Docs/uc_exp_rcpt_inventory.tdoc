@@ -1,0 +1,27 @@
+
+mset command on
+
+create db documentation
+ where table = "uc_exp_rcpt_inventory"
+   and table_comment = "This table is to capture the expected loads in a truck when ASN is interface"
+   and rcvkey ="Used to easily tie inventory detail records to rcvlin entries." 
+   and trknum ="Truck Number"  
+   and supnum ="Supplier Number"  
+   and wh_id ="Warehouse ID - the warehouse in which the inventory is to be received."  
+   and client_id ="Client ID associated with the invoice."  
+   and invnum ="Invoice Number" 
+   and invtyp ="Invoice Type: Only applies if the inventory activity is for a receipt" 
+   and seqnum ="Used to make unique rcvlin entries when identify duplicates the original line." 
+   and prtnum ="Item number to be received." 
+   and invsts ="Inventory Status"  
+   and orgcod ="Expected/actual origin code."  
+   and revlvl ="Expected/actual revision level." 
+   and lotnum ="Expected/actual lot number."  
+   and sup_lotnum ="Lot number supplied by the supplier for tracking purposes. "  
+   and lodnum ="Uniquely identifies invlod record.  In many systems, this value is the same as the label on a pallet."  
+   and subnum ="Uniquely identified invsub record."  
+   and ASNFLG ="This flag is set to 1 when inventory is downloaded from the HOST as an ASN" 
+   and dtlnum ="Uniquely identified invdtl record." 
+   and trnqty ="The unit quantity affected by this transaction."   
+/
+mset command off

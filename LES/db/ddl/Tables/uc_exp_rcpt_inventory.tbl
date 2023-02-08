@@ -1,0 +1,39 @@
+#use $DCSDIR/include
+#use $SALDIR/include
+#use $MCSDIR/include
+#use $MOCADIR/include
+#include <dcscolwid.h>
+#include <dcstbldef.h>
+#include <sqlDataTypes.h>
+
+mset command on 
+[create
+  table uc_exp_rcpt_inventory
+(
+  rcvkey NVARCHAR(15), 
+  trknum NVARCHAR(20), 
+  supnum NVARCHAR(32), 
+  wh_id NVARCHAR(32), 
+  client_id NVARCHAR(32), 
+  invnum NVARCHAR(35), 
+  invtyp NVARCHAR(4), 
+  seqnum INTEGER, 
+  prtnum NVARCHAR(50), 
+  invsts NVARCHAR(4), 
+  orgcod NVARCHAR(25), 
+  revlvl NVARCHAR(25), 
+  lotnum NVARCHAR(25), 
+  sup_lotnum NVARCHAR(25), 
+  lodnum NVARCHAR(30), 
+  subnum NVARCHAR(30), 
+  ASNFLG INTEGER, 
+  dtlnum NVARCHAR(30), 
+  trnqty INTEGER
+)]catch (ERR_TABLE_ALREADY_EXISTS)
+RUN_DDL
+
+mset command off
+
+#use $LESDIR/db/ddl
+#include <Docs/uc_exp_rcpt_inventory.tdoc>
+

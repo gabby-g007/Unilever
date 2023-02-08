@@ -1,0 +1,137 @@
+<command>
+  
+ <name>raise usr ems alert for appointment kpi report</name>
+  
+ <description>Raise EMS Event For Appointment KPI Details</description>
+  
+ <type>Local Syntax</type>
+  
+ <local-syntax>
+
+<![CDATA[
+list warehouses
+ where wh_id [not in ('WMD1' ,'----' )]
+|
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    /* We must prime the event definition */
+    publish data
+     where evt_msg = "Attached is the list of Appointment KPI Report"
+       and evt_subj = "Appointment KPI Report: @lngdsc - @wh_id"
+       and evt_qual = "wh_id"
+       and evt_grp = 'REPORTS'
+       and evt_pri = '3'
+       and evt_nam = 'USR-APPOINTMENT-KPI-REPORT'
+       and src_sys = @src_sys
+       and lngdsc = 'Appointment KPI Report'
+}
+else
+{
+    [select rtnum2
+       from poldat_view
+      where polcod = 'EMS'
+        and polvar = 'EVENTS'
+        and polval = 'USR-APPOINTMENT-KPI-REPORT'
+		and wh_id = nvl(@wh_id, @@wh_id)
+        and rtnum1 = 1] catch(-1403)
+    |
+    if (@? = 0)
+    {
+        publish data
+         where from_date = (sysdate - @rtnum2)
+           and to_date = sysdate
+        |
+        {
+            list usr appointment details for ems alert
+             where from_date = @from_date
+               and to_date = @to_date
+            |
+            publish data
+             where wh_id = nvl(@wh_id, @@wh_id)
+               and appt_id = @appt_id
+               and app_note = @appt_str
+               and start_dte = to_char(@original_start_dte, 'YYYY-MM-DD')
+               and end_dte = to_char(@original_end_dte, 'YYYY-MM-DD')
+               and carcod = @carcod
+               and adrnam = @adrnam
+               and car_move_id = @car_move_id
+               and attn_cod = @attn_cod
+               and carm_note = @car_move_str
+               and trl_note = @trlr_str
+               and ordnum = @ordnum
+               and ordtyp = @ordtyp
+               and ord_note = @ord_str
+               and ship_id = @ship_id
+               and shpsts = @shpsts
+               and trlr_num = @trlr_num
+               and trlr_stat = @trlr_stat
+               and orderd_qty = @orderd_qty
+               and picked_qty = @picked_qty
+               and cut_qty = @cut_qty
+               and shrt_qty = @shrt_qty
+               and Inprocess_qty = @Inprocess_qty
+               and cancqty = @cancqty
+               and numppk = @numppk
+               and numcpk = @numcpk
+               and remaining_qty = @remaining_qty
+               and remaining_palts = @remaining_palts
+               and remaining_cases_picks = @remaining_cases_picks
+               and remaining_case_qty = @remaining_case_qty
+               and ordlin_cnt = @ordlin_cnt
+               and dstloc = nvl(nvl(@dstloc, @dstloc_), @dstloc1)
+               and prct_loaded = @prct_loaded
+               and rest_pal = @rest_pal
+               and tot_cas_pick = @tot_cas_pick
+               and tot_pal_pick = @tot_pal_pick
+               and pff_flag = @pff_flag
+               and yard_loc = @yard_loc
+               and vc_trlr_ref = @vc_trlr_ref
+        } >> res
+        |
+        if (rowcount(@res) > 0)
+        {
+            [select to_char(sysdate, 'YYYYMMDD') fildte
+               from dual]
+            |
+            expand environment variable
+             where variable = '$LESDIR'
+            |
+            [select 'ApptKPI_' || nvl(@wh_id, @@wh_id) || '-' || @fildte || '.csv' filnam,
+                    replace(@value, 'les', 'LES') || '\files\emsout\' filepath
+               from dual]
+            |
+            write csv file
+             where resdata = @res
+               and filnam = @filnam
+               and path = @filepath
+            |
+            go to sleep
+             where sleeptime = 2
+            |
+            get server information
+            |
+            list warehouses
+             where wh_id [not in ('WMD1' ,'----' )]
+            |
+            log ems event
+             where evt_nam = 'USR-APPOINTMENT-KPI-REPORT'
+               and src_sys = @src_sys
+               and in_trans = 0
+               and locale_id = 'US_ENGLISH'
+               and wh_id = @wh_id
+               and lngdsc = @lngdsc
+               and att_app_srv = @url
+               and att_file = @filnam
+               and att_path = @filepath || @filnam
+               
+        }
+    }
+}
+
+]]>
+
+</local-syntax>
+
+</command>

@@ -1,0 +1,3 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+SYNC-UC_APPT_ETA,,Synchronizes Data For UC AP,0,cron,archive production data where arc_nam = 'UC-APPT-ETA',$LESDIR/log/sync_uc_appt_eta.log,,0,0 0 1 ? * *,,,usr_data
+SYNC-UC_TRACEABILITY,,Synchronizes Data For UC Traceability,0,cron,archive production data where arc_nam = 'UC-TRACEABILITY',$LESDIR/log/sync_uc_traceability.log,,0,0 0 1 ? * *,,,usr_data

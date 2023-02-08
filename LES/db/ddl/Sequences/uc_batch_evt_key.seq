@@ -1,0 +1,29 @@
+#use $MOCADIR/include
+#use $DCSDIR/include
+#use $LESDIR/include
+#include <sqlDataTypes.h>
+
+mset command on
+
+[create
+  table uc_batch_evt_key
+ (
+     currval numeric(28) identity(1, 1) primary key,
+     nextval numeric(28),
+     seedval numeric(28),
+     incval numeric(28),
+     maxval numeric(28)
+ ) 
+ 
+    set identity_insert uc_batch_evt_key
+     on insert
+   into uc_batch_evt_key(currval, nextval, seedval, incval, maxval)
+ values (-1, -1, 1, 1, 9999999999)
+    set identity_insert uc_batch_evt_key off] catch(-2714, -2714);
+[insert
+   into sysctl(numcod, prefix, prelen, prlflg, seqlen, suflen, btsflg, lstseq, seqflg)
+ values ('uc_batch_evt_key', '', 0, 0, 10, 0, 0, 0, 0)] catch(512, -1);
+ 
+RUN_DDL
+
+mset command off

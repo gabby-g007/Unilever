@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-INTEGRATOR-SE-EVENTS-ALERT,,Retrigger failed SE Events and send EMS Alert,0,timer,job usr retrigger integrator send error events,$LESDIR/log/USR-INTEGRATOR-SE-EVENTS-ALERT.log,,0,,0,300,usr_data

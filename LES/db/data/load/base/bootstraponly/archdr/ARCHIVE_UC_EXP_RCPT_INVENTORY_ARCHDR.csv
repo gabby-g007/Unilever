@@ -1,0 +1,13 @@
+arc_nam,arc_table,list_cmd,max_rows,sts_fil,purge_flg,post_arc_cmd,action_on_dup
+"ARCHIVE_UC_EXP_RCPT_INVENTORY","UC_EXP_RCPT_INVENTORY","[select UC_EXP_RCPT_INVENTORY.*
+   from UC_EXP_RCPT_INVENTORY,
+        rcvtrk
+  where uc_exp_rcpt_inventory.trknum = rcvtrk.trknum
+    and rcvtrk.rcvtrk_stat = 'C'
+    and rcvtrk.clsdte < sysdate -21
+ union
+ select UC_EXP_RCPT_INVENTORY.*
+   From usr_e4eta
+   join UC_EXP_RCPT_INVENTORY
+     on UC_EXP_RCPT_INVENTORY.trknum = usr_e4eta.ship_id
+  where usr_e4eta.e4_status = '14'] catch(@?)",0,"",1,"","I"

@@ -1,0 +1,69 @@
+<command>
+  <name>purge usr damaged inventory</name>
+  <description>purge usr damaged inventory</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+list warehouses
+|
+[select inventory_view.stoloc,
+        inventory_view.prtnum,
+        inventory_view.prt_client_id,
+        inventory_view.dtlnum dtlnum1,
+        inventory_view.lotnum,
+        inventory_view.orgcod,
+        inventory_view.revlvl,
+        inventory_view.invsts,
+        inventory_view.ftpcod,
+        prtftp_view.casuom,
+        inventory_view.untqty
+   from inventory_view,
+        prtftp_view
+  where inventory_view.prtnum = prtftp_view.prtnum
+    and inventory_view.prt_client_id = prtftp_view.prt_client_id
+    and inventory_view.ftpcod = prtftp_view.ftpcod
+    and inventory_view.wh_id = prtftp_view.wh_id
+    and inventory_view.invsts in ('DAMG', 'RJCT', 'HOLD', 'EXPD')
+    and inventory_view.wh_id = @wh_id
+    and inventory_view.stoloc not in ('PERM-ADJ-LOC')
+    and inventory_view.stoloc in (select poldat.rtstr1
+                                    from poldat
+                                   where poldat.polcod = 'USR-UNILEVER'
+                                     and poldat.polvar = 'DELETE-INVENTORY'
+                                     and poldat.polval = 'LOCATION'
+                                     and poldat.rtnum1 = 1)] catch(@?)
+|
+if (@? = 0)
+{
+    generate next number
+     where numcod = 'sesnum'
+    |
+    process inventory adjustment
+     where stoloc = @stoloc
+       and prtnum = @prtnum
+       and prt_client_id = @prt_client_id
+       and dtlnum = @dtlnum1
+       and lotnum = @lotnum
+       and orgcod = @orgcod
+       and revlvl = @revlvl
+       and invsts = @invsts
+       and uomcod = @casuom
+       and ftpcod = @ftpcod
+       and oprcod = 'INVADJ'
+       and inv_adj_qty = @untqty
+       and untqty = @untqty
+       and usr_id = 'SUPER'
+       and whereclause = '[select perm_adj_sub    from wh   where wh_id = @wh_id]| move inventory where srcdtl = @dtlnum1 and dstsub = @perm_adj_sub and movref = @nxtnum and wh_id = @wh_id and actcod = ''INVDEL'' and reacod = ''DSTR'' and client_id = ''----'''
+       and invtid = ''
+       and scanned_qty = 0
+       and reacod = 'DSTR'
+       and client_id = @prt_client_id
+       and wh_id = @wh_id
+       and invadj = 1
+       and callingapp = 'invadjdel'
+    |
+    commit
+}
+]]>
+</local-syntax>
+</command>

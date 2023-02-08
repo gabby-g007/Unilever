@@ -1,0 +1,9 @@
+slot_typ_id,asset_typ,asset_slot_code,slot_asset_typ,ins_dt,last_upd_dt,ins_user_id,last_upd_user_id
+1,MCHEP,A,CHEP,,,SUPER,SUPER
+2,MCHEP,B,CHEP,,,SUPER,SUPER
+3,MHEAT,A,HEAT,,,SUPER,SUPER
+4,MHEAT,B,HEAT,,,SUPER,SUPER
+5,MWHIT,A,WHIT,,,SUPER,SUPER
+6,MWHIT,B,WHIT,,,SUPER,SUPER
+11,MPECO,A,PECO,,,SUPER,SUPER
+12,MPECO,B,PECO,,,SUPER,SUPER

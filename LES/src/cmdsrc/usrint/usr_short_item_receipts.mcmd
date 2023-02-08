@@ -1,0 +1,182 @@
+<command>
+  <name>usr short item receipts</name>
+  <description>usr short item receipts</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+publish data 
+where filterByClause = nvl(@filterByClause, [1=1])
+|
+[select replace(@filterByClause, 'prtnum', 'rimlin.prtnum') filterByClause1
+   from dual]
+   |
+   [select replace(@filterByClause, 'prtnum', 'rcvlin.prtnum') filterByClause2
+   from dual]
+   |
+list warehouses
+ where wh_id <> 'WMD1'
+|
+[/*#limit=@offset,@limit,true*/
+select '' trknum,
+        '' trlr_stat,
+        '' yard_loc,
+        null expdte,
+        null start_dte,
+        null arrdte,
+        rimlin.invnum,
+        rimlin.invlin,
+        rimlin.prtnum,
+        rimlin.lotnum,
+        rimlin.revlvl,
+        rimlin.orgcod,
+        rimlin.expqty,
+        rimlin.idnqty,
+        null rcvqty,
+        rimlin.invsln,
+        rimlin.wh_id,
+        rimlin.supnum,
+        p.stkuom,
+        p.dspuom
+   from rimlin
+   join prtmst_view p
+     on rimlin.wh_id = p.wh_id
+    and rimlin.prtnum = p.prtnum
+  where rimlin.expqty > rimlin.idnqty
+    and @filterByClause1:raw
+     and rimlin.wh_id = @wh_id
+    and not exists(select 'x'
+                     from rcvlin b
+                     join rcvtrk rt
+                       on b.trknum = rt.trknum
+                      and b.wh_id = rt.trknum
+                     join trlr t
+                       on rt.trlr_id = t.trlr_id
+                    where b.invnum = rimlin.invnum
+                      and b.invlin = rimlin.invlin
+                      and b.supnum = rimlin.supnum
+                      and b.wh_id = rimlin.wh_id
+                      and rt.clsdte is null)
+ union
+ select rcvlin.trknum,
+        trlr.trlr_stat,
+        trlr.yard_loc,
+        null expdte,
+        appt.start_dte start_dte,
+        trlr.arrdte,
+        rcvlin.invnum,
+        rcvlin.invlin,
+        rcvlin.prtnum,
+        rcvlin.lotnum,
+        rcvlin.revlvl,
+        rcvlin.orgcod,
+        rcvlin.expqty,
+        rcvlin.idnqty,
+        rcvlin.rcvqty,
+        rcvlin.invsln,
+        rcvlin.wh_id,
+        rcvlin.supnum,
+        p.stkuom,
+        p.dspuom
+   from rcvtrk
+   join trlr
+     on rcvtrk.trlr_id = trlr.trlr_id
+   join rcvlin
+     on rcvlin.trknum = rcvtrk.trknum
+    and rcvlin.wh_id = rcvtrk.wh_id
+   join prtmst_view p
+     on rcvlin.wh_id = p.wh_id
+    and rcvlin.prtnum = p.prtnum
+   left outer
+   join appt_mstrcpt
+     on rcvtrk.trknum = appt_mstrcpt.trknum
+   left outer
+   join appt
+     on appt.appt_id = appt_mstrcpt.appt_id
+  where rcvlin.expqty > rcvlin.rcvqty
+    and rcvtrk.clsdte is null
+    and @filterByClause2:raw
+    and rcvlin.wh_id = @wh_id
+ ] catch(-1403)
+|
+if (@dspuom != '')
+{
+    /* We have a display uom, so convert the quantities into the appropriate UOM.*/
+    [select decode(@dspuom, null, @expqty, @expqty / pfd.untqty) dsp_expqty,
+            decode(@dspuom, null, @stkuom, @dspuom) dsp_expqty_uom,
+            decode(@dspuom, null, null, @stkuom, null, round(mod(@expqty, pfd.untqty), 2)) rem_expqty,
+            @stkuom rem_expqty_uom,
+            decode(@dspuom, null, @idnqty, @idnqty / pfd.untqty) dsp_idnqty,
+            decode(@dspuom, null, @stkuom, @dspuom) dsp_idnqty_uom,
+            decode(@dspuom, null, null, @stkuom, null, round(mod(@idnqty, pfd.untqty), 2)) rem_idnqty,
+            @stkuom rem_idnqty_uom,
+            decode(@dspuom, null, @rcvqty, @rcvqty / pfd.untqty) dsp_rcvqty,
+            decode(@dspuom, null, @stkuom, @dspuom) dsp_rcvqty_uom,
+            decode(@dspuom, null, null, @stkuom, null, round(mod(@rcvqty, pfd.untqty), 2)) rem_rcvqty,
+            @stkuom rem_rcvqty_uom
+       from prtftp_dtl pfd
+      where pfd.prtnum = @prtnum
+        and pfd.wh_id = @wh_id
+        and pfd.uomcod = @dspuom
+        and exists(select 'x'
+                     from prtftp pf
+                    where pf.prtnum = pfd.prtnum
+                      and pf.ftpcod = pfd.ftpcod
+                      and pf.wh_id = pfd.wh_id
+                      and pf.defftp_flg = 1)
+      group by pfd.untqty] catch(-1403)
+}
+else
+{
+    /* No display UOM. Publish out the data appropriately.*/
+    publish data
+     where dsp_expqty = @expqty
+       and dsp_expqty_uom = @stkuom
+       and rem_expqty = 0
+       and rem_expqty_uom = @stkuom
+       and dsp_idnqty = @idnqty
+       and dsp_idnqty_uom = @stkuom
+       and rem_idnqty = 0
+       and rem_idnqty_uom = @stkuom
+       and dsp_rcvqty = @rcvqty
+       and dsp_rcvqty_uom = @stkuom
+       and rem_rcvqty = 0
+       and rem_rcvqty_uom = @stkuom
+}
+|
+/* Publish ou the data the child DDA.*/
+publish data
+ where wh_id = @wh_id
+   and trknum = @trknum
+   and trlr_stat = @trlr_stat
+   and yard_loc = @yard_loc
+   and start_dte = @start_dte
+   and expdte = @expdte
+   and arrdte = @arrdte
+   and invnum = @invnum
+   and invlin = @invlin
+   and invsln = @invsln
+   and prtnum = @prtnum
+   and lotnum = @lotnum
+   and revlvl = @revlvl
+   and orgcod = @orgcod
+   and expqty = @expqty
+   and idnqty = @idnqty
+   and rcvqty = @rcvqty
+   and supnum = @supnum
+   and stkuom = @stkuom
+   and dspuom = @dspuom
+   and dsp_expqty = @dsp_expqty
+   and dsp_expqty_uom = @dsp_expqty_uom
+   and rem_expqty = nvl(@rem_expqty, 0)
+   and rem_expqty_uom = @rem_expqty_uom
+   and dsp_idnqty = @dsp_idnqty
+   and dsp_idnqty_uom = @dsp_idnqty_uom
+   and rem_idnqty = nvl(@rem_idnqty, 0)
+   and rem_idnqty_uom = @rem_idnqty_uom
+   and dsp_rcvqty = @dsp_rcvqty
+   and dsp_rcvqty_uom = @dsp_rcvqty_uom
+   and rem_rcvqty = nvl(@rem_rcvqty, 0)
+   and rem_rcvqty_uom = @rem_rcvqty_uom
+]]>
+</local-syntax>
+</command>

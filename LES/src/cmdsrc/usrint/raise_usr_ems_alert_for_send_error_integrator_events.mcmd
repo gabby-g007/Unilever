@@ -1,0 +1,112 @@
+<command>
+  <name>raise usr ems alert for send error integrator events</name>
+  <description>Raise EMS Alert for Integrator SE Events</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    publish data
+     where evt_msg = "The following are the events that are in SE status after Retrigger:
+
+EVENT DATA SEQUENCE           EVENT ID                      ERROR
+@message
+   
+Please check the event data sequence for complete error message since some data could have been truncated
+   
+"
+       and evt_subj = "WMS Integrator SE Events Alert - @wh_id"
+       and evt_qual = 'wh_id'
+       and evt_grp = 'INTEGRATOR'
+       and evt_pri = '1'
+       and evt_nam = 'USR-INTEGRATOR-SE-EVENTS-ALERT'
+       and lngdsc = 'Integrator SE Events alert'
+	   and src_sys = @src_sys
+}
+else
+{
+    get ems event information
+     where evt_nam = 'USR-INTEGRATOR-SE-EVENTS-ALERT'
+    |
+    if (@enabled = 1)
+    {
+        /*
+         * Below sql gives records for which event got 
+         * failed in SE status even after triggering twice
+         *
+         * int_fld1 = 1 : States the record is inserted in dlytrn
+         * table for the first time after retrigger
+         *
+         * int_fld1 = 2 : States the record is retriggered second 
+         * time
+         *
+         * int_fld1 will be inserted with default value 1 when records is
+         * first inserted in uc_sl_temp_tbl table and it is updated for the 
+         * second time as 2 based needed on the below conditions
+         */
+        [select rtnum1 attempts
+           from poldat
+          where polcod = 'USR-UNILEVER'
+            and polvar = 'RETRIGGER-SE-EVENTS'
+            and polval = 'ATTEMPTS'
+            and wh_id_tmpl = nvl(@wh_id, @@wh_id)] catch(-1403, 510)
+        |
+        [select uc_sl_temp_tbl.evt_data_seq,
+                uc_sl_temp_tbl.ref_fld1,
+                uc_sl_temp_tbl.int_fld1,
+                uc_sl_temp_tbl.str_fld1,
+				sl_evt_data.evt_id
+           from uc_sl_temp_tbl
+           join sl_evt_data
+             on uc_sl_temp_tbl.evt_data_seq = sl_evt_data.evt_data_seq
+          where sl_evt_data.evt_stat_cd = 'SE'
+            and uc_sl_temp_tbl.int_fld1 = @attempts] catch(-1403, 510) >> res1
+        |
+        if (rowcount(@res1) > 0)
+        {
+            publish data combination
+             where res1 = @res1
+            |
+            /*
+             * Deleting the record before publishing it, because we need to form a 
+             * resultset out of it, since using delete as last statement will not 
+             * return any rows and resultset will become null which is not expected
+             * in this scenario
+             */
+            [delete
+               from uc_sl_temp_tbl
+              where evt_data_seq = @evt_data_seq] catch(-1403, 510)
+			|
+			[select concat(@evt_data_seq, space(30 - len(@evt_data_seq))) || concat(@evt_id, space(30 - len(@evt_id))) || @str_fld1 message
+   from dual]
+        } >> res2
+        |
+        if (rowcount(@res2) > 0)
+        {
+            get server information
+            |
+            convert column results to string
+             where colnam = 'message'
+               and res = @res2
+               and separator = '
+
+'
+            |
+            log ems event
+             where evt_nam = 'USR-INTEGRATOR-SE-EVENTS-ALERT'
+               and key_val = @wh_id
+               and message = @result_string
+               and wh_id = nvl(@wh_id, @@wh_id)
+               and in_trans = 0
+               and locale_id = 'US_ENGLISH'
+               and att_app_srv = @url
+        }
+    }
+}
+
+]]>
+</local-syntax>
+</command>

@@ -1,0 +1,123 @@
+<command>
+  <name>process inventory status change</name>
+  <description>Changes the inventory status for inventory details or work order lines</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+/*
+ * UNI-1032: Katta, Dayakar: November 19,2021
+ * This is a pre trigger on the command to save the no.of inventory details that being changed
+ * If the policy to batch the INV-STS events is enabled and there are multiple details.
+ */
+[select 'X'
+   from poldat_view
+  where polcod = 'USR-UNILEVER'
+    and polvar = 'EVENTS-BATCHING'
+    and polval = 'ENABLED'
+    and rtstr1 = 'INV-STS'
+    and wh_id = nvl(@wh_id, @@wh_id)
+    and rtnum1 = 1
+    and rownum < 2] catch(-1403)
+|
+if (@dtlnum_list is not null and @? = 0)
+{
+    [select (len(@dtlnum_list) - len(replace(@dtlnum_list, ',', ''))) + 1 total_details
+       from dual]
+    |
+    save session variable
+     where name = 'uc_tot_dtl'
+       and value = @total_details
+    |
+    save session variable
+     where name = 'uc_cur_dtl'
+       and value = 0
+    |
+    generate next number
+     where numcod = 'uc_batch_evt_key'
+    |
+    save session variable
+     where name = 'uc_batch_evt_key'
+       and value = @nxtnum
+}
+|
+^process inventory status change
+ where @*
+]]>
+</local-syntax>
+<argument name="to_invsts" datatype="string"> </argument>
+<argument name="prc_hldpfx" datatype="string"> </argument>
+<argument name="prc_hldnum" datatype="string"> </argument>
+<argument name="dtlnum" datatype="string"> </argument>
+<argument name="wkonum" datatype="string"> </argument>
+<argument name="client_id" datatype="string"> </argument>
+<argument name="wkorev" datatype="string"> </argument>
+<argument name="wkolin" datatype="string"> </argument>
+<argument name="seqnum" datatype="integer"> </argument>
+<argument name="dtlnum_list" datatype="string"> </argument>
+<argument name="wkonum_list" datatype="string"> </argument>
+<argument name="client_id_list" datatype="string"> </argument>
+<argument name="wkorev_list" datatype="string"> </argument>
+<argument name="wkolin_list" datatype="string"> </argument>
+<argument name="seqnum_list" datatype="string"> </argument>
+<argument name="eval_dtcflg" datatype="integer"> </argument>
+<argument name="validate_invsum" datatype="integer"> </argument>
+<argument name="prc_reacod" datatype="string"> </argument>
+<argument name="wh_id" datatype="string"> </argument>
+<argument name="mode" datatype="string"> </argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+    This command changes the inventory status of one or more pieces of 
+    inventory.  This command also can search the component tracking 
+    tables, and make changes based on the contents of assembled inventory.
+    This command will only make changes to inventory in SIGNIFICANT,
+    PICKABLE locations, plus work order expected receipts locations.
+  </p>
+  <p>
+    <str>NOTE:</str> This command will pass all parameters along to 
+    "list inventory change information" if needed.  If the proper parameters
+    weren't passed in to be able to get the details, the list command will
+    be called and those results are used to perform the change.
+  </p>
+  <p>
+    Added mode parameter to validate if this inventory status change
+    is called from GUI or RF as there is validation to change inventory 
+    status based on roles, and only in case if change is called from 
+    GUI or RF and will not do any validation if change is called 
+    from other modes(like Integrator Transaction).
+  </p>
+]]>
+</remarks>
+
+<retcol name="exec_sts" type="COMTYP_INT">Execution status.  This command will return all rows that it attempts
+  to change.  If it fails, it will not fail the entire command, but 
+  will return the status in this field.  All triggers need to take this
+  into account as this command will normally succeed regardless of what
+  fails in the internal processing.  A status of 1 means that the change
+  failed due to the fact that the to_status did not fit into the aging 
+  profile progression of inventory statuses for this inventory.</retcol>
+<retcol name="bldg_id" type="COMTYP_CHAR">Building Id</retcol>
+<retcol name="arecod" type="COMTYP_CHAR">Area Code</retcol>
+<retcol name="stoloc" type="COMTYP_CHAR">Storage Location</retcol>
+<retcol name="wh_id" type="COMTYP_CHAR">Storage Location</retcol>
+<retcol name="lodnum" type="COMTYP_CHAR">Load Number</retcol>
+<retcol name="subnum" type="COMTYP_CHAR">Subload Number</retcol>
+<retcol name="dtlnum" type="COMTYP_CHAR">Detail Number</retcol>
+<retcol name="prtnum" type="COMTYP_CHAR">Part Number</retcol>
+<retcol name="prt_client_id" type="COMTYP_CHAR">Part Client ID</retcol>
+<retcol name="trnqty" type="COMTYP_INT">Transaction quantity</retcol>
+<retcol name="fr_invsts" type="COMTYP_CHAR">From inventory status</retcol>
+<retcol name="to_invsts" type="COMTYP_CHAR">To inventory status</retcol>
+
+<exception value="eOK">Normal successful completion</exception>
+
+<seealso cref="list inventory change information"> </seealso>
+<seealso cref="process inventory aging profile change"> </seealso>
+
+</documentation>
+
+</command>

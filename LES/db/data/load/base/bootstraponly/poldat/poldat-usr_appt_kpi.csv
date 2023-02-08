@@ -1,0 +1,3 @@
+polcod,polvar,polval,wh_id_tmpl,srtseq,rtstr1,rtstr2,rtnum1,rtnum2,rtflt1,rtflt2,moddte,mod_usr_id,grp_nam
+USR-UNILEVER,OVERFLOW,BLDG-CODE,----,1,LV-BLDG,USCS,0,0,0,0,,NOUSER,dcs_data
+USR-UNILEVER,OVERFLOW,BLDG-CODE,----,2,SAL-BLDG,USCR,0,0,0,0,,NOUSER,dcs_data

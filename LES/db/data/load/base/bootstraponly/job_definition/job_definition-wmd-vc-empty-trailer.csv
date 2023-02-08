@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+WMD-VC-EMPTY-TRAILER,*,EMS Alert to send report on Empty Trailer,0,cron,raise usr ems event for empty trailers,$LESDIR/log/EMS-EMPTY-TRAILER.log,,0,"0 0 1,5,9,13,17,21 * * ?",,,usr_data

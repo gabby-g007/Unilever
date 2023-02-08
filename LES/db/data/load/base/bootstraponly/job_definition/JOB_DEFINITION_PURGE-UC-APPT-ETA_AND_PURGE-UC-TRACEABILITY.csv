@@ -1,0 +1,3 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+PURGE-UC-APPT-ETA,,Purge UC APPT ETA,0,cron,purge uc appt eta table where dayold = 30,$LESDIR/log/purge_uc_appt_eta.log,,0,0 0 5 ? * *,,,usr_data
+PURGE-UC-TRACEABILITY,,Purges UC Traceability,0,cron,purge uc traceability table where dayold = 30,$LESDIR/log/purge_uc_traceability.log,,0,0 0 5 ? * *,,,usr_data

@@ -1,0 +1,64 @@
+<command>
+<name>list usr item dimensions</name>
+<description>List USR Item Dimensions</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'prtftp_view.prtnum')
+|
+[select replace(@filterByClause, 'wgt', 'wgt/16') filterByClause
+   from dual]
+|
+[/*#limit=@offset,@limit,true*/
+ select prtftp_view.prtnum,
+        prtdsc.lngdsc,
+        prtftp_view.palhgt,
+        prtftp_view.pallen,
+        prtftp_view.palwid,
+        prtftp_view.palgrswgt / 16 palgrswgt,
+        prtftp_view.palnetwgt / 16 palnetwgt,
+        prtftp_view.cashgt,
+        prtftp_view.caslen,
+        prtftp_view.caswid,
+        prtftp_view.caslvl,
+        prtftp_view.netwgt / 16 netwgt,
+        prtftp_view.grswgt / 16 grswgt,
+        prtftp_view.untpal,
+        prtftp_view.pal_stck_hgt,
+        '' as 'D'
+   from prtftp_view
+   join prtdsc
+     on prtdsc.colval = prtftp_view.prtnum || '|' || prtftp_view.prt_client_id || '|' || prtftp_view.wh_id
+    and prtdsc.locale_id = 'US_ENGLISH'
+  where prtftp_view.defftp_flg = 1
+    and @+prtftp_view.wh_id
+    and @filterByClause:raw
+    and @*
+  order by @sortOrderClause:raw]
+
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list Item Dimensions. This command returns the data faster than the regular screen.
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

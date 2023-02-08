@@ -1,0 +1,4 @@
+polcod,polvar,polval,wh_id_tmpl,srtseq,rtstr1,rtstr2,rtnum1,rtnum2,rtflt1,rtflt2,moddte,mod_usr_id,grp_nam
+EMS,EVENTS,USR-APPOINTMENT-KPI-REPORT,----,0,raise usr ems alert for appointment kpi report,<rtnum2 = no of days to consider for report>,1,30,0,0,2/23/2021 3:04:17 PM,NOUSER,dcs_data
+USR-UNILEVER,OVERFLOW,BLDG-CODE,----,1,LV-BLDG,USCS,1,0,0,0,,NOUSER,dcs_data
+USR-UNILEVER,OVERFLOW,BLDG-CODE,----,2,SAL-BLDG,USCR,1,0,0,0,,NOUSER,dcs_data

@@ -1,0 +1,46 @@
+<command>
+<name>list usr items last picked added</name>
+<description>List USR Items Last Picked Added</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'pckwrk_view.prtnum')
+|
+[/*#limit=@offset,@limit,true*/
+ select pckwrk_view.prtnum,
+        max(pckdte) pckdte,
+        max(adddte) adddte,
+        '' as 'D'
+   from pckwrk_view
+  where @+wh_id
+    and @filterByClause:raw
+    and @*
+  group by pckwrk_view.prtnum
+  order by @sortOrderClause:raw]
+   
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list the Latest Dates when pick added and when pick completed by Item Number
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

@@ -1,0 +1,198 @@
+<command>
+  <name>usr short item summary</name>
+  <description>Unilever Short SKU Summary</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+list warehouses
+ where wh_id <> 'WMD1'
+|
+[select rd.wh_id,
+        rd.prt_client_id,
+        rd.prtnum,
+        case when count(distinct rd.invsts) = 1 then min(rd.invsts)
+             when count(distinct rd.invsts) > 1 then 'Many (' || count(distinct rd.invsts) || ')'
+        end invsts,
+        datediff(hour, min(rd.start_dte), sysdate) apt_hrs,
+        min(rd.start_dte) nxt_apt,
+        sum(rd.fp_qty) fp_qty,
+        sum(rd.cp_qty) cp_qty,
+        count(distinct rd.car_move_id) cmv_cnt,
+        rd.prtfam,
+        rd.dept_cod,
+        rd.ftpcod,
+        rd.pal_stck_hgt,
+        rd.fp_cs,
+        rd.fp_hgt
+   from (select rplwrk.wh_id,
+                rplwrk.prt_client_id,
+                rplwrk.prtnum,
+                rplwrk.invsts,
+                prtmst.prtfam,
+                prtmst.dept_cod,
+                prtftp.ftpcod,
+                prtftp.pal_stck_hgt,
+                prtftp_dtl.untqty fp_cs,
+                prtftp_dtl.hgt fp_hgt,
+                floor(rplwrk.pckqty / prtftp_dtl.untqty) fp_qty,
+                rplwrk.pckqty - (floor(rplwrk.pckqty / prtftp_dtl.untqty) *prtftp_dtl.untqty) cp_qty,
+                appt.start_dte,
+                car_move.car_move_id,
+                shipment.ship_id
+           from rplwrk
+           join prtmst
+             on rplwrk.wh_id = prtmst.wh_id_tmpl
+            and rplwrk.prt_client_id = prtmst.prt_client_id
+            and rplwrk.prtnum = prtmst.prtnum
+           join prtftp
+             on rplwrk.wh_id = prtftp.wh_id
+            and rplwrk.prt_client_id = prtftp.prt_client_id
+            and rplwrk.prtnum = prtftp.prtnum
+            and prtftp.defftp_flg = 1
+           join prtftp_dtl
+             on prtftp.wh_id = prtftp_dtl.wh_id
+            and prtftp.prtnum = prtftp_dtl.prtnum
+            and prtftp.prt_client_id = prtftp_dtl.prt_client_id
+            and prtftp.ftpcod = prtftp_dtl.ftpcod
+            and prtftp_dtl.pal_flg = 1
+           join shipment
+             on rplwrk.ship_id = shipment.ship_id
+           join stop
+             on shipment.stop_id = stop.stop_id
+           join car_move
+             on stop.car_move_id = car_move.car_move_id
+           left
+           join appt
+             on car_move.car_move_id = appt.car_move_id
+            and appt.appt_id = (select min(ap.appt_id)
+                                  from appt ap
+                                 where car_move.car_move_id = ap.car_move_id)
+          where rplwrk.wh_id = nvl(@wh_id, @@wh_id)
+            and rplwrk.parref is null) rd
+  group by rd.wh_id,
+        rd.prt_client_id,
+        rd.prtnum,
+        rd.prtfam,
+        rd.dept_cod,
+        rd.ftpcod,
+        rd.pal_stck_hgt,
+        rd.fp_cs,
+        rd.fp_hgt
+  order by min(rd.start_dte)] catch(-1403, 510)
+|
+[select count(distinct
+              case when wrkque.wrksts not in ('LOCK', 'SUSP') then wrkque.reqnum
+              end) wrk_rls,
+        count(distinct
+              case when wrkque.wrksts in ('LOCK', 'SUSP') then wrkque.reqnum
+              end) wrk_lck
+   from pckwrk_hdr
+   join wrkque
+     on pckwrk_hdr.wrkref = wrkque.wrkref
+  where pckwrk_hdr.wh_id = @wh_id
+    and pckwrk_hdr.prt_client_id = @prt_client_id
+    and pckwrk_hdr.prtnum = @prtnum
+    and pckwrk_hdr.wrktyp in ('D', 'E', 'M', 'R', 'T', 'G')] catch(-1403, 510)
+|
+[select count(1) asg_pf
+   from rplcfg
+  where wh_id = @wh_id
+    and prt_client_id = @prt_client_id
+    and prtnum = @prtnum
+    and MOV_ZONE_ID not in ('10157')] catch(-1403, 510)
+|
+[select sum(rcvlin.expqty) - sum(rcvlin.rcvqty) rcv_expqty
+   from trlr
+   join rcvtrk
+     on trlr.trlr_id = rcvtrk.trlr_id
+   join rcvlin
+     on rcvtrk.wh_id = rcvlin.wh_id
+    and rcvtrk.trknum = rcvlin.trknum
+  where rcvtrk.wh_id = @wh_id
+    and trlr.arrdte is not null
+    and rcvtrk.clsdte is null
+    and rcvlin.prt_client_id = @prt_client_id
+    and rcvlin.prtnum = @prtnum] catch(-1403, 510)
+|
+[select sum(comqty) fwi_comqty,
+        sum(untqty) fwi_untqty
+   from (select locmst.stoloc,
+                nvl(invsum.comqty, 0) comqty,
+                sum(invdtl.untqty) untqty
+           from aremst
+           join locmst
+             on aremst.wh_id = locmst.wh_id
+            and aremst.arecod = locmst.arecod
+           join loc_typ
+             on aremst.wh_id = loc_typ.wh_id
+            and aremst.arecod = loc_typ.loc_typ
+           join invlod
+             on locmst.wh_id = invlod.wh_id
+            and locmst.stoloc = invlod.stoloc
+           join invsub
+             on invlod.lodnum = invsub.lodnum
+           join invdtl
+             on invsub.subnum = invdtl.subnum
+           left
+           join invsum
+             on locmst.wh_id = invsum.wh_id
+            and locmst.arecod = invsum.arecod
+            and locmst.stoloc = invsum.stoloc
+            and invdtl.prt_client_id = invsum.prt_client_id
+            and invdtl.prtnum = invsum.prtnum
+          where aremst.wh_id = @wh_id
+            and loc_typ.fwiflg = 1
+            and invdtl.prt_client_id = @prt_client_id
+            and invdtl.prtnum = @prtnum
+            and invdtl.ship_line_id is null
+          group by locmst.stoloc,
+                invsum.comqty) dataset] catch(-1403, 510)
+|
+[select sum(invdtl.untqty) sto_untqty
+   from aremst
+   join locmst
+     on aremst.wh_id = locmst.wh_id
+    and aremst.arecod = locmst.arecod
+   join loc_typ
+     on aremst.wh_id = loc_typ.wh_id
+    and aremst.arecod = loc_typ.loc_typ
+   join invlod
+     on locmst.wh_id = invlod.wh_id
+    and locmst.stoloc = invlod.stoloc
+   join invsub
+     on invlod.lodnum = invsub.lodnum
+   join invdtl
+     on invsub.subnum = invdtl.subnum
+  where aremst.wh_id = @wh_id
+    and loc_typ.sto_trlr_flg = 1
+    and loc_typ.fwiflg = 0
+    and invdtl.prt_client_id = @prt_client_id
+    and invdtl.prtnum = @prtnum] catch(-1403, 510)
+|
+publish data
+ where wh_id = @wh_id
+   and prt_client_id = @prt_client_id
+   and prtnum = @prtnum
+   and invsts = @invsts
+   and apt_hrs = @apt_hrs
+   and nxt_apt = @nxt_apt
+   and fp_qty = @fp_qty
+   and cp_qty = @cp_qty
+   and cmv_cnt = @cmv_cnt
+   and prtfam = @prtfam
+   and dept_cod = @dept_cod
+   and ftpcod = @ftpcod
+   and pal_stck_hgt = @pal_stck_hgt
+   and fp_cs = @fp_cs
+   and fp_hgt = @fp_hgt
+   and wrk_rls = @wrk_rls
+   and wrk_lck = @wrk_lck
+   and asg_pf = @asg_pf
+   and rcv_expqty = nvl(@rcv_expqty, 0)
+   and fwi_untqty = nvl(@fwi_untqty, 0)
+   and fwi_comqty = nvl(@fwi_comqty, 0)
+   and sto_untqty = nvl(@sto_untqty, 0)
+   and fwi_avlqty = nvl(@fwi_untqty - @fwi_comqty, 0)
+]]>
+   </local-syntax>
+</command>

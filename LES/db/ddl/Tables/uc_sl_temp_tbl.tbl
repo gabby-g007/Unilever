@@ -1,0 +1,22 @@
+#use $DCSDIR/include
+#use $LESDIR/db/ddl/Docs
+#use $LESDIR/include
+#use $MOCADIR/include
+#include <dcsddl.h>
+#include <dcscolwid.h>
+#include <dcstbldef.h>
+#include <sqlDataTypes.h>
+
+mset command on
+[CREATE_TABLE(UC_SL_TEMP_TBL)
+ (
+     evt_data_seq	NUMERIC(12, 0) FOREIGN KEY REFERENCES sl_evt_data(evt_data_seq) NULL,
+     ref_fld1		VARCHAR(100) NULL,
+     int_fld1   	INT NULL,
+     str_fld1		VARCHAR(100) NULL
+ )
+]catch (ERR_TABLE_ALREADY_EXISTS)
+RUN_DDL
+mset command off
+
+#include <uc_sl_temp_tbl.tdoc>

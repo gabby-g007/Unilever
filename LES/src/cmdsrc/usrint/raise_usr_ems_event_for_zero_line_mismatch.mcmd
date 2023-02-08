@@ -1,0 +1,85 @@
+<command>
+  
+ <name>raise usr ems event for zero line mismatch</name>
+  
+ <description>Raise EMS event for zero line mismatch</description>
+  
+ <type>Local Syntax</type>
+  
+ <local-syntax>
+
+<![CDATA[
+list warehouses
+ where wh_id [not in ('WMD1' ,'----' )]
+|
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    /* We must prime the event definition */
+    publish data
+     where evt_msg = 'Zero Line issue found. Below are the details of Shipment and Carrier Move.
+          Shipment ID: @ship_id
+      Carrier Move ID: @car_move_id
+            Warehouse: @wh_id'
+       and evt_subj = 'Alert: Zero Line issue found for (@ship_id/@car_move_id/@wh_id) Please check this email for line discrepancies'
+       and evt_qual = 'ship_id,car_move_id,wh_id'
+       and evt_grp = 'SHIPPING'
+       and evt_pri = '1'
+	   and evt_nam = 'USR-ZERO-LINE-MISMATCH-ALERT'
+       and src_sys = @src_sys
+       and lngdsc = 'Zero Line issue found'
+}
+else
+{
+    get ems event information
+     where evt_nam = 'USR-ZERO-LINE-MISMATCH-ALERT'
+    |
+    if (@enabled = 1)
+    {
+        [select rtstr1
+           from poldat
+          where polcod = 'USR-UNILEVER'
+            and polvar = 'JOBS'
+            and polval = 'USR-ZERO-LINE-MISMATCH-ALERT'] catch(-1403)
+        |
+        [select decode(@rtstr1, null, '1=1', 'cm.carcod in (''' || replace(@rtstr1, ',', ''',''') || ''')') filter_clause
+           from dual]
+        |
+        [select distinct s.wh_id,
+                s.ship_id,
+                cm.car_move_id
+           from ord_line ol
+           join ord o
+             on ol.ordnum = o.ordnum
+           join shipment s
+             on s.ship_id = o.ordnum
+           join stop st
+             on st.stop_id = s.stop_id
+           join car_move cm
+             on cm.car_move_id = st.car_move_id
+          where not exists(select 'X'
+                             from shipment_line sl
+                            where ol.ordnum = sl.ordnum
+                              and ol.ordlin = sl.ordlin)
+            and s.shpsts in ('R', 'I')
+            and @filter_clause:raw
+            and ol.wh_id = nvl(@wh_id, @@wh_id)] catch(-1403)
+        |
+        if (@? = 0)
+        {
+            log ems event
+             where evt_nam = 'USR-ZERO-LINE-MISMATCH-ALERT'
+               and key_val = @ship_id || '/' || @car_move_id || '/' || @wh_id
+               and src_sys = @src_sys
+               and ship_id = @ship_id
+               and car_move_id = @car_move_id
+               and wh_id = @wh_id
+        }
+    }
+}
+]]>
+
+</local-syntax>
+
+</command>

@@ -1,0 +1,139 @@
+<command>
+  <name>send usr batched inventory status transactions</name>
+  <description>Send USR Batched Inventory Status Transactions</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+/*
+ * UNI-983: Katta, Dayakar - November 18, 2021
+ * Group the events for the given batch key by item/lot/from and to Inventory status/hold flag
+ */
+ publish data
+ where uc_batch_evt_key = @uc_batch_evt_key
+|
+{
+    [select bldg_mst.business_unt,
+            uc_inv_sts_hld_info.evt_id,
+            uc_inv_sts_hld_info.send_to_host,
+            uc_inv_sts_hld_info.fr_invsts,
+            uc_inv_sts_hld_info.to_invsts,
+            uc_inv_sts_hld_info.hld_flg,
+            uc_inv_sts_hld_info.fr_hld_flg,
+            uc_inv_sts_hld_info.to_hld_flg,
+            uc_inv_sts_hld_info.prtnum,
+            uc_inv_sts_hld_info.prt_client_id,
+            uc_inv_sts_hld_info.lotnum,
+            uc_inv_sts_hld_info.wh_id,
+            uc_inv_sts_hld_info.acttyp,
+            uc_inv_sts_hld_info.reacod,
+            uc_inv_sts_hld_info.trans_wh_id,
+            uc_inv_sts_hld_info.result_of_hold,
+            decode(count(distinct uc_inv_sts_hld_info.arecod), 1, max(uc_inv_sts_hld_info.arecod), 0, '', '*MULT*') arecod,
+            decode(count(distinct uc_inv_sts_hld_info.stoloc), 1, max(uc_inv_sts_hld_info.stoloc), 0, '', '*MULT*') stoloc,
+            max(uc_inv_sts_hld_info.lodnum) lodnum,
+            max(uc_inv_sts_hld_info.subnum) subnum,
+            decode(count(distinct uc_inv_sts_hld_info.dtlnum), 1, max(uc_inv_sts_hld_info.dtlnum), 0, '', '*MULT*') dtlnum,
+            decode(count(distinct uc_inv_sts_hld_info.orgcod), 1, max(uc_inv_sts_hld_info.orgcod), 0, '', '*MULT*') orgcod,
+            decode(count(distinct uc_inv_sts_hld_info.revlvl), 1, max(uc_inv_sts_hld_info.revlvl), 0, '', '*MULT*') revlvl,
+            decode(count(distinct uc_inv_sts_hld_info.sup_lotnum), 1, max(uc_inv_sts_hld_info.sup_lotnum), 0, '', '*MULT*') sup_lotnum,
+            decode(count(distinct uc_inv_sts_hld_info.supnum), 1, max(uc_inv_sts_hld_info.supnum), 0, '', '*MULT*') supnum,
+            decode(count(distinct uc_inv_sts_hld_info.hldpfx), 1, max(uc_inv_sts_hld_info.hldpfx), 0, '', '*MULT*') hldpfx,
+            decode(count(distinct uc_inv_sts_hld_info.hldnum), 1, max(uc_inv_sts_hld_info.hldnum), 0, '', '*MULT*') hldnum,
+            decode(count(distinct uc_inv_sts_hld_info.mandte), 1, max(uc_inv_sts_hld_info.mandte), '') mandte,
+            decode(count(distinct uc_inv_sts_hld_info.expire_dte), 1, max(uc_inv_sts_hld_info.expire_dte), '') expire_dte,
+            decode(count(distinct uc_inv_sts_hld_info.hldnum), 1, max(uc_inv_sts_hld_info.hldnum), 0, '', '*MULT*') hldnum,
+            sum(uc_inv_sts_hld_info.trnqty) trnqty
+       from uc_inv_sts_hld_info
+       join bldg_mst
+         on uc_inv_sts_hld_info.bldg_id = bldg_mst.bldg_id
+        and uc_inv_sts_hld_info.wh_id = bldg_mst.wh_id
+      where uc_inv_sts_hld_info.uc_batch_evt_key = @uc_batch_evt_key
+		and uc_inv_sts_hld_info.sent_to_host != 1
+		and uc_inv_sts_hld_info.sent_date is null
+      group by bldg_mst.business_unt,
+            uc_inv_sts_hld_info.evt_id,
+            uc_inv_sts_hld_info.send_to_host,
+            uc_inv_sts_hld_info.fr_invsts,
+            uc_inv_sts_hld_info.to_invsts,
+            uc_inv_sts_hld_info.hld_flg,
+            uc_inv_sts_hld_info.fr_hld_flg,
+            uc_inv_sts_hld_info.to_hld_flg,
+            uc_inv_sts_hld_info.prtnum,
+            uc_inv_sts_hld_info.prt_client_id,
+            uc_inv_sts_hld_info.lotnum,
+            uc_inv_sts_hld_info.wh_id,
+            uc_inv_sts_hld_info.acttyp,
+            uc_inv_sts_hld_info.reacod,
+            uc_inv_sts_hld_info.trans_wh_id,
+            uc_inv_sts_hld_info.result_of_hold]
+    |
+    get integrator system id
+     where systyp = 'WMD'
+    |
+    if (@evt_id = 'INV-HLD')
+    {
+        sl_log event
+         where evt_id = 'INV-HLD'
+           and ifd_data_ptr = NULL
+           and sys_id = @sys_id
+           and send_to_host = @send_to_host
+           and hld_flg = @hld_flg
+           and fr_hld_flg = @fr_hld_flg
+           and to_hld_flg = @to_hld_flg
+           and fr_acct = @fr_invsts
+           and to_acct = @to_invsts
+           and usr_id = nvl(@usr_id, @@usr_id)
+		   and bldg_id = @bldg_id
+    }
+    else if (@evt_id = 'INV-STS')
+    {
+        sl_log event
+         where evt_id = 'INV-STS'
+           and ifd_data_ptr = NULL
+           and sys_id = @sys_id
+           and lodnum = @lodnum
+           and subnum = @subnum
+           and dtlnum = @dtlnum
+           and fr_orgcod = @orgcod
+           and fr_revlvl = @revlvl
+           and to_revlvl = @revlvl
+           and wh_id = @wh_id
+           and arecod = @arecod
+           and stoloc = @stoloc
+           and prtnum = @prtnum
+           and prt_client_id = @prt_client_id
+           and trnqty = @trnqty
+           and fr_invsts = @fr_invsts
+           and to_invsts = @to_invsts
+           and supnum = @supnum
+           and hstsrc = @fr_invsts
+           and hstdst = @to_invsts
+           and hld_flg = @hld_flg
+           and fr_lotnum = @lotnum
+           and fr_sup_lotnum = @sup_lotnum
+           and reacod = @reacod
+           and to_expire_dte = @expire_dte
+           and to_lotnum = @lotnum
+           and to_mandte = @mandte
+           and to_orgcod = @orgcod
+           and usr_id = nvl(@usr_id, @@usr_id)
+           and trans_wh_id = nvl(@trans_wh_id, nvl(@wh_id, @@wh_id))
+           and bldg_id = @bldg_id
+           and result_of_hold = @result_of_hold
+           and send_to_host = @send_to_host
+    };
+    [update uc_inv_sts_hld_info
+        set sent_to_host = 1,
+            sent_date = sysdate
+      where uc_batch_evt_key = @uc_batch_evt_key]
+}
+
+]]>
+</local-syntax>
+  <documentation>
+<remarks></remarks>
+<exception value="eOK">Normal successful completion</exception>
+
+</documentation>
+</command>

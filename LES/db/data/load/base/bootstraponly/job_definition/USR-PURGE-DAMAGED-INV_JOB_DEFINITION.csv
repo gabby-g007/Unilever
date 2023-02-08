@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+"USR-PURGE-DAMAGED-INV","","Purge damaged inventory",1,"timer","purge usr damaged inventory","$LESDIR/log/usr_purge_inv_dam.log","",0,"",600,28800,"usr_data"

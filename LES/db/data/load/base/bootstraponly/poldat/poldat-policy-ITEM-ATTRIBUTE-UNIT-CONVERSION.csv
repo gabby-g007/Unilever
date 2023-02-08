@@ -1,0 +1,4 @@
+polcod,polvar,polval,wh_id_tmpl,srtseq,rtstr1,rtstr2,rtnum1,rtnum2,rtflt1,rtflt2,moddte,mod_usr_id,grp_nam
+USR-UNILEVER,ITEM-OVERRIDE,TIME-CONVERSION-FACTOR,----,1,<attribute name>,<Conversion unit -D-Days/H-Hours/M-Minutes/S-Seconds>,0,0,0,0,SYSDATE,,
+USR-UNILEVER,ITEM-OVERRIDE,TIME-CONVERSION-FACTOR,----,2,abs_ordinv_win,M,0,0,0,0,SYSDATE,,
+USR-UNILEVER,ITEM-OVERRIDE,TIME-CONVERSION-FACTOR,----,3,time_to_warn_for_exp,S,0,0,0,0,SYSDATE,,

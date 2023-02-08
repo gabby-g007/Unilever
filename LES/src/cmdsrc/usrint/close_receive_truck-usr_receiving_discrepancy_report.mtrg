@@ -1,0 +1,26 @@
+<trigger>
+  <name>usr_receiving_discrepancy_report</name>
+  <on-command>close receive truck</on-command>
+  <description />
+  <fire-sequence>9999</fire-sequence>
+  <local-syntax>
+<![CDATA[
+usr enroute receiving discrepancies
+ where trknum = @trknum
+   and discrepancy = '1' >> res
+|
+convert column results to string
+ where resultset = @res
+   and colnam = 'trknum'
+   and separator = ','
+|
+if (@result_string)
+{
+    raise usr ems event for receiving discrepancy
+     where trknum = @trknum
+       and discrepancy = '1'
+}
+]]>
+</local-syntax>
+  <enable>yes</enable>
+</trigger>

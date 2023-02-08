@@ -1,0 +1,37 @@
+<command>
+  <name>get rf pickup display information</name>
+  <description>get rf pickup display information</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+[select asset_slot
+   from pckwrk_view
+  where wrkref = @wrkref] catch(@?)
+|
+if (@? = 0 and @asset_slot <> '')
+{
+    [select decode(prtdsc.short_dsc, null, prtdsc.lngdsc, prtdsc.short_dsc) || '==>' || @asset_slot pickup_dspval
+       from prtmst_view,
+            prtdsc
+      where prtmst_view.prtnum = @prtnum
+        and prtmst_view.prt_client_id = @prt_client_id
+        and prtmst_view.wh_id = @wh_id
+        and prtdsc.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+        and prtdsc.colval = prtmst_view.prtnum || '|' || prtmst_view.prt_client_id || '|' || prtmst_view.wh_id_tmpl
+        and prtdsc.locale_id = nvl(@locale_id, @@locale_id)]
+}
+else
+{
+    [select decode(prtdsc.short_dsc, null, prtdsc.lngdsc, prtdsc.short_dsc) pickup_dspval
+       from prtmst_view,
+            prtdsc
+      where prtmst_view.prtnum = @prtnum
+        and prtmst_view.prt_client_id = @prt_client_id
+        and prtmst_view.wh_id = @wh_id
+        and prtdsc.colnam = 'prtnum|prt_client_id|wh_id_tmpl'
+        and prtdsc.colval = prtmst_view.prtnum || '|' || prtmst_view.prt_client_id || '|' || prtmst_view.wh_id_tmpl
+        and prtdsc.locale_id = nvl(@locale_id, @@locale_id)]
+}
+]]>
+</local-syntax>
+</command>

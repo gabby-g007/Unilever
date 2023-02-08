@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-EMS-PROD-SUMMARY,,Send weekly productivity summary report,1,cron,raise usr ems alert productivity summary report,$LESDIR/log/ems_prod_sum.log,,0,0 0 6 ? * MON,,,dcs_data

@@ -1,0 +1,18 @@
+<command>
+  <name>purge uc appt eta table</name>
+  <description>purge uc appt eta table</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+[select *
+       from uc_appt_eta
+      where ins_dt < sysdate - /*=moca_util.days(*/ @dayold /*=)*/]
+|
+[delete
+   from uc_appt_eta
+  where appt_id = @appt_id]
+
+]]>
+</local-syntax>
+</command>

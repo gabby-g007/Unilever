@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-WAREHOUSE-BILLING-DETAILS,,EMS Alert for Billing Details,0,timer,raise usr ems event for warehouse billing details,$LESDIR/log/USR-WAREHOUSE-BILLING-DETAILS.log,,0,,0,3600,usr_data

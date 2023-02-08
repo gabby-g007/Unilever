@@ -1,0 +1,181 @@
+<trigger>
+
+<name>log_var_seamles_event</name>
+
+<on-command>process inventory hold change</on-command>
+
+<fire-sequence>2500</fire-sequence>
+
+<local-syntax>
+<![CDATA[
+
+/* Make sure that we have an inventory detail number     */
+/* other wise don't bother logging the transaction       */
+/* Also, we shouldn't log the transaction if we created  */
+/* the hold at the time we created the inventory.  This  */
+/* would occur when applying future holds.  The reason   */
+/* that we do this is because we do not want to tell     */
+/* the HOST or LENS that we have put inventory on hold   */
+/* since we will already do this in the create           */
+/* inventory transaction via the hold flag.  Since they  */
+/* can't tell if a hold transaction came from inventory  */
+/* creation we must prevent this from being sent so that */
+/* they don't put more product on hold in their system   */
+/* then they should.                                     */
+if ((@dtlnum != '') and (@future_hold != 1))
+{
+    /*
+     * We only send the transaction for the first time we set the inventory
+     * detail to hold. And only send the transaction when we remove the last
+     * hold from the inventory detail.
+     */
+    if (@to_hld_flg = 0 or @fr_hld_flg = 0)
+    {
+        publish data
+         where send_to_host = 1
+    }
+    else
+    {
+        publish data
+         where send_to_host = 0
+    }
+    |
+    if (@exec_sts = 0)
+    {
+        get integrator system id
+         where systyp = 'WMD'
+           and wh_id = nvl(@wh_id, @@wh_id)
+        |
+        publish data
+         where prc_hldpfx = @hldpfx
+           and prc_hldnum = @hldnum
+        |
+        /* Load the policy data to get host source and destination data */
+        get host transaction type
+        |
+        hide stack variable
+         where name = 'mode'
+        |
+        /*
+         * UNI-983: Katta, Dayakar - November 18, 2021
+         * If the policy to batch INV-STS events is enabled then we need to write the data into a custom table instead of logging
+         * the individual event
+         * If the session variable uc_cur_dtl is available and total details being changed more than 1
+         * then we are into batching the events
+         */
+        get session variable
+         where name = 'uc_tot_dtl' catch(-1403)
+        |
+        publish data
+         where uc_tot_dtl = nvl(@value, 0)
+		|
+        publish data
+         where value = null
+        |
+        get session variable
+         where name = 'uc_cur_dtl' catch(-1403)
+        |
+        publish data
+         where uc_cur_dtl = nvl(@value, 0)
+        |
+        if (@uc_tot_dtl > 1)
+        {
+			publish data
+             where value = null
+            |
+            get session variable
+             where name = 'uc_batch_evt_key' catch(-1403)
+            |
+            publish data
+             where uc_batch_evt_key = @value
+            |
+            {
+                create record
+                 where table = 'uc_inv_sts_hld_info'
+                   and uc_batch_evt_key = @uc_batch_evt_key
+                   and evt_id = 'INV-HLD'
+                   and wh_id = nvl(@wh_id, @@wh_id)
+                   and arecod = @arecod
+                   and stoloc = @stoloc
+                   and lodnum = @lodnum
+                   and subnum = @subnum
+                   and dtlnum = @dtlnum
+                   and prtnum = @prtnum
+                   and prt_client_id = @prt_client_id
+                   and orgcod = @orgcod
+                   and revlvl = @revlvl
+                   and lotnum = @lotnum
+                   and sup_lotnum = @sup_lotnum
+                   and supnum = @supnum
+                   and fr_invsts = @fr_invsts
+                   and to_invsts = @to_invsts
+                   and trnqty = @trnqty
+                   and fr_hld_flg = @fr_hld_flg
+                   and to_hld_flg = @to_hld_flg
+                   and hld_flg = @hld_flg
+                   and mandte = @mandte
+                   and expire_dte = @expire_dte
+                   and reacod = @reacod
+                   and trans_wh_id = @wh_id
+                   and hldpfx = @hldpfx
+                   and hldnum = @hldnum
+                   and acttyp = @acttyp
+                   and send_to_host = @send_to_host
+                   and ins_usr_id = nvl(@user_id, @@user_id)
+                   and bldg_id = @bldg_id
+                   and result_of_hold = 1;
+
+                /* If the current detail count matches with total count then send batched events*/
+                if (@uc_tot_dtl = @uc_cur_dtl + 1)
+                {
+                    send usr batched inventory status transactions
+                     where uc_batch_evt_key = @uc_batch_evt_key
+                }
+                else
+                {
+                    /* Increment the current detail count*/
+                    save session variable
+                     where name = 'uc_cur_dtl'
+                       and value = @uc_cur_dtl + 1
+                }
+            }
+        }
+        else
+        {
+            sl_log event
+             where evt_id = 'INV-HLD'
+               and ifd_data_ptr = NULL
+               and sys_id = @sys_id
+               and send_to_host = @send_to_host
+               and hld_flg = @hld_flg
+               and fr_hld_flg = @fr_hld_flg
+               and to_hld_flg = @to_hld_flg
+               and fr_acct = @hstsrc
+               and to_acct = @hstdst
+               and usr_id = nvl(@usr_id, @@usr_id)
+        }
+    }
+}
+
+]]>
+</local-syntax>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+     Logs the INV-HLD event to the integrator only if the following are true
+     1. It is not being logged because of a future hold by receiving or work orders
+     2. We are placing a hold and do not already have a hold on the product
+     3. If removing a hold it must be the last hold on the product
+  </p>
+]]>
+</remarks>
+
+<seealso cref="sl_log event">
+</seealso>
+
+</documentation>
+
+</trigger>

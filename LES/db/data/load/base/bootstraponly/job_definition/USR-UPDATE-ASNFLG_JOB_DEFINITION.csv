@@ -1,0 +1,6 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+"USR-UPDATE-ASNFLG","","Update ASN flag and Label count when carrier code is LLT4",0,"timer","[update ord 
+set vc_ship_label_flg='1', vc_label_cnt='2' 
+where vc_carcod = 'LLT4' 
+and vc_label_cnt = 0 
+and vc_ship_label_flg = 0]","$LESDIR/log/USR-UPDATE-ASNFLG.log","",0,"",0,120,"usr_data"

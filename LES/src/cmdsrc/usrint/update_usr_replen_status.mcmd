@@ -1,0 +1,26 @@
+<command>
+  <name>update usr replen status</name>
+  <description>update usr replen status</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+list warehouses
+|
+[select distinct wrkque.reqnum
+   from wrkque,
+        invsum
+  where wrkque.oprcod = 'PIARPL'
+    and wrkque.wh_id =  nvl(@wh_id, @@wh_id)
+    and wrkque.dstloc = invsum.stoloc
+    and invsum.untqty < 16
+    and wrkque.wrksts = 'LOCK'] catch(@?)
+|
+if (@? = 0)
+{
+change record where table_name = 'wrkque' and wrksts = 'PEND' and reqnum = @reqnum catch(@?)
+}
+
+]]>
+</local-syntax>
+</command>

@@ -1,0 +1,81 @@
+<command>
+  <name>validate usr pff items</name>
+  <description>Validate USR PFF Items</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+
+if (@car_move_id)
+{
+    [select count(distinct prtmst_view.prtnum) pff_ship_count
+       from prtmst_view
+       join ord_line
+          on prtmst_view.prtnum = ord_line.prtnum
+          and prtmst_view.prt_client_id = ord_line.prt_client_id
+          and prtmst_view.wh_id = ord_line.wh_id
+	  and prtmst_view.prtfit in ('C1', 'C2')
+       join shipment_line
+	  on shipment_line.ordnum = ord_line.ordnum
+          and shipment_line.ordlin = ord_line.ordlin
+       join ship_struct_view  
+	  on ship_struct_view.ship_id = shipment_line.ship_id
+          and ship_struct_view.wh_id = shipment_line.wh_id
+          where ship_struct_view.wh_id = nvl(@wh_id, @@wh_id)
+          and ship_struct_view.car_move_id = @car_move_id]
+    |
+    if (@pff_ship_count > 0)
+    {
+        publish data
+         where pff_flag = 1
+    }
+    else
+    {
+        publish data
+         where pff_flag = 0
+    }
+}
+else if (@trknum)
+{
+    [select count(distinct prtmst_view.prtnum) pff_rec_count
+       from rcvlin
+       join prtmst_view
+         on rcvlin.wh_id = prtmst_view.wh_id
+        and rcvlin.prtnum = prtmst_view.prtnum
+        and rcvlin.prt_client_id = prtmst_view.prt_client_id
+        and prtmst.prtfit in ('C1', 'C2')
+      where rcvlin.wh_id = nvl(@wh_id, @@wh_id)
+        and rcvlin.trknum = @trknum]
+    |
+    if (@pff_rec_count > 0)
+    {
+        publish data
+         where pff_flag = 1
+    }
+    else
+    {
+        publish data
+         where pff_flag = 0
+    }
+}
+
+]]>
+</local-syntax>
+
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will validate if the passed in Load or Inbound Shipment has any items with Item Fit is C1 or C2
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+
+</command>

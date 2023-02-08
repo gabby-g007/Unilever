@@ -1,0 +1,28 @@
+<command>
+  <name>create address</name>
+  <description>Create address data</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+/* This command has been created as a part of BOL & Packing list company name change - USR-UL-NAME-CHANGE CR to update default vc_adrnam value to the adrmst for the host_ext_id during order download */
+if (@adrnam != '')
+{
+    list policies
+     where polcod = 'USR-UNILEVER'
+       and polvar = 'DEFAULT-ADRMST-ADRNAM'
+       and polval = 'VC-ADRNAM'
+       and wh_id = @wh_id
+       and rtstr1 = @adrnam catch(-1403)
+    |
+    if (@? = 0)
+    {
+        publish data
+         where vc_adrnam = @rtstr2
+    }
+}
+|
+^create address
+ where @*
+]]>
+</local-syntax>
+</command>

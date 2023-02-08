@@ -1,0 +1,121 @@
+<command>
+  
+ <name>raise usr ems alert for picked inventory</name>
+  
+ <description>Raise EMS Event For Picked Inventory</description>
+  
+ <type>Local Syntax</type>
+  
+ <local-syntax>
+
+<![CDATA[
+list warehouses
+ where wh_id [not in ('WMD1' ,'----' )]
+|
+get ems source system
+|
+if (@primer_flg and @primer_flg = 1)
+{
+    /* We must prime the event definition */
+    publish data
+     where evt_msg = "Attached is the list of picked inventory with ineligible inventory status or on hold. Kindly check!!!!"
+       and evt_subj = "Ineligible inventory is picked - @lngdsc - @wh_id"
+       and evt_grp = 'SHIPPING'
+       and evt_pri = '3'
+       and evt_nam = 'USR-PICKEDINV-ALERT'
+       and src_sys = @src_sys
+}
+else
+{
+    get ems event information
+     where evt_nam = 'USR-PICKEDINV-ALERT'
+    |
+    if (@enabled = 1)
+    {
+        [select inv.wh_id,
+                inv.prtnum,
+                inv.untqty,
+                '#' || inv.lodnum as lodnum,
+                inv.invsts,
+                inv.hld_flg,
+                inv.lotnum,
+                pd.lngdsc,
+                s.car_move_id,
+                sh.ship_id,
+                sl.ordnum,
+                inv.stoloc,
+                o.stcust,
+                ad.adrnam,
+                o.ordtyp
+           from inventory_view inv,
+                locmst lm,
+                loc_typ lt,
+                aremst am,
+                stop s,
+                shipment sh,
+                shipment_line sl,
+                ord o,
+                prtdsc pd,
+                adrmst ad
+          where inv.wh_id = nvl(@wh_id, @@wh_id)
+            and inv.stoloc = lm.stoloc
+            and lm.arecod = am.arecod
+            and lm.loc_typ_id = lt.loc_typ_id
+            and lt.fwiflg = 1
+            and inv.ship_line_id is not null
+            and inv.ship_line_id = sl.ship_line_id
+            and sl.ship_id = sh.ship_id
+            and sh.stop_id = s.stop_id
+            and sl.ordnum = o.ordnum
+            and o.ordtyp in ('CSTO', 'CSTS')
+            and (inv.invsts not in (select invsts
+                                      from prgmst p
+                                     where p.invsts_prg = o.ordtyp) or inv.hld_flg = 1)
+            and pd.colval = inv.prtnum || '|' || inv.prt_client_id || '|' || inv.wh_id
+            and pd.locale_id = 'US_ENGLISH'
+            and ad.host_ext_id = o.stcust] catch(@?) >> res
+        |
+        if (rowcount(@res) > 0)
+        {
+            [select to_char(sysdate, 'YYYYMMDD') fildte
+               from dual]
+            |
+            expand environment variable
+             where variable = '$LESDIR'
+            |
+            [select 'InvalidPickedInv-' || @fildte || '.csv' filnam,
+                    replace(@value, 'les', 'LES') || '\files\emsout\' filepath
+               from dual]
+            |
+            write csv file
+             where resdata = @res
+               and filnam = @filnam
+               and path = @filepath
+			|
+            go to sleep
+            where sleeptime = 2   
+            |
+            get server information
+            |
+            list warehouses
+             where wh_id [not in ('WMD1' ,'----' )]
+            |
+            log ems event
+             where evt_nam = 'USR-PICKEDINV-ALERT'
+               and src_sys = @src_sys
+               and in_trans = 0
+               and locale_id = 'US_ENGLISH'
+               and att_app_srv = @url
+               and att_file = @filnam
+               and att_path = @filepath || @filnam
+               and key_val = sysdate
+               and wh_id = @wh_id
+               and lngdsc = @lngdsc
+        }
+    }
+}
+]]>
+
+</local-syntax>
+
+</command>

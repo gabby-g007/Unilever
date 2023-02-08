@@ -1,0 +1,82 @@
+<command>
+  <name>list usr inbound conditions</name>
+  <description>Inbound Protect From Freeze</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+list warehouses
+ where wh_id <> 'WMD1'
+ |
+[select trlr.yard_loc,
+        rcvinv.supnum,
+        rcvinv.trknum,
+        rcvinv.invnum,
+        rcvinv.invtyp,
+        trlr.arrdte,
+        case when trlr.arrdte is null then 0
+             else datediff(hour, trlr.arrdte, sysdate)
+        end elapsed_time,
+        rcvtrk.rcvtrk_stat,
+        trlr.trlr_num,
+        trlr.carcod,
+        trlr.trlr_stat,
+        appt.appt_id,
+        case when appt.appt_id is null then 0
+             else
+             case when trlr.arrdte is null then 0
+                  else datediff(hour, trlr.arrdte, appt.start_dte)
+             end
+        end on_time_chck,
+        rcvtrk.clsdte,
+        appt.start_dte,
+        case when rcvtrk.clsdte is null then 0
+             else datediff(hour, trlr.arrdte, rcvtrk.clsdte)
+        end duration_time,
+        case when rcvinv.invnum in (select distinct rcvlin.invnum
+                                      from rcvlin,
+                                           prtmst
+                                     where prtmst.prtnum = rcvlin.prtnum
+                                       and prtmst.prt_client_id = rcvlin.prt_client_id
+                                       and prtmst.wh_id_tmpl = rcvlin.wh_id
+                                       and (decode(prtmst.prtfit, 'C1', 'YES', 'C2', 'YES', 'NO') = 'YES')
+                                       and rcvlin.invnum = rcvinv.invnum
+                                       and rcvlin.wh_id = rcvinv.wh_id) then 'YES'
+             else 'NO'
+        end pff
+   from rcvinv
+   join rcvtrk
+     on rcvinv.trknum = rcvtrk.trknum
+    and rcvinv.wh_id = rcvtrk.wh_id
+   join trlr
+     on trlr.trlr_id = rcvtrk.trlr_id
+   left outer
+   join appt_mstrcpt
+     on rcvtrk.trknum = appt_mstrcpt.trknum
+   left outer
+   join appt
+     on appt_mstrcpt.appt_id = appt.appt_id
+  where rcvinv.wh_id = nvl(@wh_id, @@wh_id)
+    and trlr.trlr_cod = 'RCV']
+|
+publish data combination
+ where yard_loc = @yard_loc
+   and supnum = @supnum
+   and trknum = @trknum
+   and invnum = @invnum
+   and invtyp = @invtyp
+   and arrdte = @arrdte
+   and pff_ship = @pff
+   and pff_storage = @pff
+   and system_date = sysdate
+   and elapsed_time = @elapsed_time
+   and rcvtrk_stat = @rcvtrk_stat
+   and trlr_num = @trlr_num
+   and carcod = @carcod
+   and trlr_stat = @trlr_stat
+   and appt_id = @appt_id
+   and on_time_chck = @on_time_chck
+   and clsdte = @clsdte
+   and duration_time = @duration_time
+   ]]>
+   </local-syntax>
+</command>

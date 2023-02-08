@@ -1,0 +1,107 @@
+<trigger>
+  <name>process usr consolidate piece</name>
+  <on-command>close trailer</on-command>
+  <description>process usr consolidate piece</description>
+  <fire-sequence>5001</fire-sequence>
+  <local-syntax>
+<![CDATA[
+[select lodnum,
+        stoloc,
+        wh_id,
+        count(distinct prtnum) u_prt,
+        count(prtnum) n_prt,
+        prtnum,
+        count(distinct lotnum) u_lot,
+        count(lotnum) n_lot,
+        lotnum,
+        count(distinct invsts) u_sts,
+        count(invsts) n_sts,
+        invsts,
+        count(distinct ship_line_id) u_sl,
+        count(ship_line_id) n_sl,
+        ship_line_id,
+        count(distinct wrkref) u_wr,
+        count(wrkref) n_wr,
+        wrkref
+   from inventory_view
+  where stoloc = @trlr_id
+  group by lodnum,
+        stoloc,
+        wh_id,
+        prtnum,
+        lotnum,
+        invsts,
+        ship_line_id,
+        wrkref
+ having ((count(distinct prtnum) <> count(prtnum)) and (count(distinct lotnum) <> count(lotnum)) and (count(distinct invsts) <> count(invsts)) and (count(distinct ship_line_id) <> count(ship_line_id)) and (count(distinct wrkref) <> count(wrkref)))] catch(@?)
+|
+if (@? = 0)
+{
+    [select lodnum master_lpn,
+            subnum master_sub,
+            dtlnum master_dtl,
+            lotnum master_lotnum,
+            invsts master_invsts,
+            prtnum master_prtnum,
+            ship_line_id master_ship_line_id
+       from inventory_view
+      where stoloc = @stoloc
+        and lodnum = @lodnum
+        and wh_id = @wh_id
+        and prtnum = @prtnum
+        and rownum < 2]
+    |
+    [select lodnum,
+            subnum,
+            lotnum,
+            invsts,
+            prtnum,
+            dtlnum,
+            rcvkey,
+            ship_line_id,
+            untqty untqty1
+       from inventory_view
+      where stoloc = @stoloc
+        and lodnum = @master_lpn
+        and prtnum = @prtnum
+        and dtlnum <> @master_dtl
+        and wh_id = @wh_id] catch(@?)
+    |
+    if (@master_dtl <> @dtlnum and @master_lotnum = @lotnum and @master_invsts = @invsts and @master_prtnum = @prtnum and @master_ship_line_id = @ship_line_id and @? = 0)
+    {
+        [update invdtl
+            set untqty = untqty + @untqty1,
+                rcvkey = nvl(@rcvkey, rcvkey)
+          where dtlnum = @master_dtl]
+        |
+        generate next number
+         where numcod = 'dlytrn_id'
+        |
+        create record
+         where table = 'dlytrn'
+           and dlytrn_id = @nxtnum
+           and trndte = sysdate
+           and oprcod = 'DTL-CONS'
+           and actcod = 'DTL-CONS'
+           and lodnum = @lodnum
+           and subnum = @subnum
+           and dtlnum = @dtlnum
+           and prtnum = @prtnum
+           and lotnum = @lotnum
+           and trnqty = @untqty
+           and toinvs = @invsts
+        |
+        [delete invdtl
+          where dtlnum = @dtlnum]
+        |
+        if (@master_sub <> @subnum)
+        {
+            [delete invsub
+              where subnum = @subnum] catch(@?)
+        }
+    }
+}
+]]>
+</local-syntax>
+  <enable>yes</enable>
+</trigger>

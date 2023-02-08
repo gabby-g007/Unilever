@@ -1,0 +1,328 @@
+<command>
+
+<name>check usr trailer receive discrepancies</name>
+
+<description>Check USR Trailer Receive Discrepancies</description>
+
+<type>Local Syntax</type>
+
+<argument name="wh_id" required="yes" datatype="string"> </argument>
+<argument name="trlr_id" required="yes" datatype="string"> </argument>
+<argument name="trknum" datatype="string"> </argument>
+<argument name="mode" datatype="string"> </argument>
+
+<local-syntax>
+
+<![CDATA[
+        /*
+         * UNI-1078: Katta, Dayakar: 29-Oct-2020
+         * This command was modified to allow the receive status discrepancies as, at UL status on inbound order line
+         * will usually be different from what received
+         * Need to turn the discrepancy checks whether the inbound shipment is system generated or not
+         */
+        /* Retrieving the information of the master receipt */
+        if (@trknum != '')
+        {
+            [select rcvtrk.trknum,
+                    rcvtrk.rec_loc,
+                    rcvtrk.trlr_id
+                    /* UNI-1078: Katta, Dayakar: 29-Oct-2020 ,rcvtrk.sys_gen_flg */
+               from rcvtrk
+              where rcvtrk.trknum = @trknum
+                and wh_id = @wh_id]
+        }
+        else
+        {
+            [select distinct rcvtrk.trlr_id
+                    /* UNI-1078: Katta, Dayakar: 29-Oct-2020 ,rcvtrk.sys_gen_flg */
+               from rcvtrk
+               join trlr
+                 on rcvtrk.trlr_id = trlr.trlr_id
+              where @+trlr.trlr_id
+                and @+trlr.trlr_num
+                and wh_id = @wh_id
+              group by rcvtrk.trlr_id
+              /* UNI-1078: Katta, Dayakar: 29-Oct-2020,rcvtrk.sys_gen_flg */]
+        }
+        |
+        /* If the receipt is system generated, we do not care about prohibiting
+         * the user from closing a master receipt with discrepancies.  We almost
+         * expect it in that case, as all the user has is a PO number to receive
+         * against and the system creates receipts and master receipts on the
+         * fly and closes them behind the scenes without the user knowing.
+         */
+        /* UNI-1078 - START: Katta, Dayakar: 29-Oct-2020
+         * The original logic should run for all the Inbound Shipments whether they are system generated or not
+         */
+        /* if (@sys_gen_flg = 1)
+        {
+            publish data
+             where result = 0
+               and allow_discr_flg = 1
+        } */
+        /* If else, we do not have a system generated master receipt and we do 
+         * care about discrepancies and disallowing the close of the master
+         * receipt based on the policy.
+         */
+        /* else if (@sys_gen_flg = 0)
+        {
+        */
+        /* UNI-1078 - END: Katta, Dayakar: 29-Oct-2020 */
+            /* We are validating which discrepancies we want to find.
+             * If we receive trknum (trlr_id = '') we only want to know if that 
+             * Master Receipt has discrepancies.
+             * If we receive trlr_id (trknum = '') we only want to know if the 
+             * Master Receipts that still on the trailer (rec_loc is null) 
+             * has discrepancies.
+             */
+            if (@rec_loc = '')
+            {
+                /* Since exp_catch_qty and rcv_catch_qty are numeric type,
+                 * so we handle it as we does in C to see if they are equal.
+                 */
+                [select distinct '1' discrepancy_flg
+                   from rcvlin,
+                        rcvtrk
+                   left outer
+                   join trlr
+                     on trlr.trlr_id = rcvtrk.trlr_id
+                  where rcvtrk.trknum = rcvlin.trknum
+                    and rcvtrk.wh_id = rcvlin.wh_id
+                    and rcvtrk.wh_id = @wh_id
+                    and rcvtrk.rec_loc is null
+                    and @+trlr.trlr_id
+                    and @+trlr.trlr_num
+                  group by rcvtrk.wh_id,
+                        rcvlin.client_id,
+                        rcvtrk.trknum,
+                        rcvlin.invnum,
+                        rcvlin.supnum,
+                        rcvlin.invlin,
+                        rcvlin.invsln
+                        /* UNI-1078 - START: Katta, Dayakar: 29-Oct-2020
+                         * unilever will usually receive the invoice lines with status other than actual
+                         * Instead of direct selecting the rcvsts, change it to retrieve the actual status when only one identified as received
+                         * or else show Multiple for status
+                         ,
+                        rcvlin.rcvsts
+                        * UNI-1078 - END: Katta, Dayakar: 29-Oct-2020
+                        */
+                 having sum(nvl(expqty, 0)) <> sum(nvl(rcvqty, 0))
+                     or sum(nvl(exp_catch_qty, 0)) - sum(nvl(rcv_catch_qty, 0)) > 0.00001
+                     or sum(nvl(exp_catch_qty, 0)) - sum(nvl(rcv_catch_qty, 0)) < -0.00001] catch(-1403) >> res
+            }
+            else
+            {
+                /* Since exp_catch_qty and rcv_catch_qty are numeric type,
+                 * so we handle it as we does in C to see if they are equal.
+                 */
+                [select distinct '1' discrepancy_flg
+                   from rcvlin,
+                        rcvtrk
+                  where rcvtrk.trknum = rcvlin.trknum
+                    and rcvtrk.wh_id = rcvlin.wh_id
+                    and rcvtrk.wh_id = @wh_id
+                    and rcvtrk.rec_loc = @rec_loc
+                    and rcvtrk.trknum = @trknum
+                  group by rcvtrk.wh_id,
+                        rcvlin.client_id,
+                        rcvtrk.trknum,
+                        rcvlin.invnum,
+                        rcvlin.supnum,
+                        rcvlin.invlin,
+                        rcvlin.invsln
+                        /* UNI-1078 - START: Katta, Dayakar: 29-Oct-2020
+                         * unilever will usually receive the invoice lines with status other than actual
+                         * Instead of direct selecting the rcvsts, change it to retrieve the actual status when only one identified as received
+                         * or else show Multiple for status
+                           ,
+                           rcvlin.rcvsts
+                         * UNI-1078 - END: Katta, Dayakar: 29-Oct-2020
+                         */
+                 having sum(nvl(expqty, 0)) <> sum(nvl(rcvqty, 0))
+                     or sum(nvl(exp_catch_qty, 0)) - sum(nvl(rcv_catch_qty, 0)) > 0.00001
+                     or sum(nvl(exp_catch_qty, 0)) - sum(nvl(rcv_catch_qty, 0)) < -0.00001] catch(-1403) >> res
+            }
+            |
+            if (rowcount(@res) > 0)
+            {
+                /* A trailer may have multiple master receipts 
+                 * so we should check the receive lines for all of them.
+                 */
+                [select wh_id,
+                        trknum
+                   from rcvtrk
+                  where @+trlr_id
+                    and @+trknum] >> res
+                |
+                [[
+                           /* 
+                            * When we create a receiving line with empty lotnum/revlvl/orgcod,
+                            * it will be defaulted to ----,  means we can identify any 
+                            * lotnum/revlvl/orgcod against the line. 
+                            * We will create a new blind line during identify as we specify 
+                            * the lotnum/revlvl/orgcod. But when we calculate the discrepancy,
+                            * we will add up all of those blind lines and compare them with 
+                            * the original line.
+                            */
+                            
+                          import com.redprairie.moca.MocaResults;
+                          import com.redprairie.moca.MocaContext;
+                          
+                          result = 0
+                          if(mode.equals("INC-BLIND"))
+                          {
+                              strExp = " and r1.expqty >= 0 ";
+                          }
+                          else
+                          {
+                              strExp = " and r1.expqty > 0 ";
+                          }
+                          
+                          while(res.next())
+                          {
+                              sqlBuffer = "[select 'x' " +
+                                            " from rcvlin r1 " +
+                                           " where r1.wh_id = '" + res.getString("wh_id") + "'" +
+                                             " and r1.trknum = '" + res.getString("trknum") + "'" +
+                                               strExp  +
+                                             " and r1.expqty <> " +
+                                                     " (select sum(rcvqty) as totqty " +
+                                                     "    from rcvlin r2 " +
+                                                     "   where r2.wh_id = '" + res.getString("wh_id") + "'" +
+                                                     "     and r2.trknum = '" + res.getString("trknum") + "'" +
+                                                     "     and r2.prtnum = r1.prtnum " +
+                                                     "     and r2.client_id = r1.client_id " +
+                                                     "     and r2.supnum = r1.supnum " +
+                                                     "     and r2.invnum = r1.invnum " +
+                                                     "     and r2.rcvsts = r1.rcvsts " +
+                                                     "     and (r2.revlvl = r1.revlvl or r1.revlvl = '----') " +
+                                                     "     and (r2.lotnum = r1.lotnum or r1.lotnum = '----') " +
+                                                     "     and (r2.orgcod = r1.orgcod or r1.orgcod = '----')) ] catch(-1403)"
+                              
+                              resExistsInv = moca.executeCommand(sqlBuffer)
+                              
+                              /* If the query returns any rows for any of the master receipts in the trailer
+                               * we will set result to 1 indicating there's a receiving discrepency. 
+                               */
+                              if (resExistsInv.getRowCount() > 0) 
+                              {
+                                  result = 1
+                                  break
+                              }
+                          }
+                      ]]
+                |
+                /* We need to know if the user is allowed to close a trailer with
+                 * discrepancies but first we need to know if we assign any role
+                 * on Receiving Configuration Maintenance - Override
+                 */
+                [select distinct 1 allow_discr_flg
+                   from poldat_view
+                   join les_usr_role
+                     on poldat_view.polval = les_usr_role.role_id
+                    and les_usr_role.usr_id = @@usr_id
+                  where poldat_view.polcod = 'CLOSE-TRAILER-DISCREPANCIES'
+                    and poldat_view.polvar = 'ROLE'
+                    and (poldat_view.ovrd_flg in (select distinct poldat_view.ovrd_flg
+                                                    from poldat_view
+                                                   where poldat_view.polcod = 'CLOSE-TRAILER-DISCREPANCIES'
+                                                     and poldat_view.polvar = 'ROLE'
+                                                     and poldat_view.ovrd_flg = 1
+                                                     and poldat_view.wh_id = @wh_id) or poldat_view.ovrd_flg = 0)
+                    and poldat_view.wh_id = @wh_id] catch(-1403)
+                |
+                if (@? = -1403)
+                {
+                    publish data
+                     where allow_discr_flg = 0
+                }
+                |
+                publish data
+                 where result = @result
+                   and allow_discr_flg = @allow_discr_flg
+            }
+            else
+            {
+                /* We need to know if the inventory status 
+                 * is considered as damaged
+                 */
+                [select trknum,
+                        wh_id
+                   from rcvtrk
+                  where @+trlr_id
+                    and wh_id = nvl(@wh_id, @@wh_id)
+                 /* WMD-73158. Using a res to save the value
+                  * and then use them to run the moca command
+                  * check damaged inventory
+                  */
+                    and @+trknum] >> res
+                |
+                /* WMD-73158. Adding a groovy to check
+                 * all the damaged inventory and break 
+                 * it when we have "damaged inventory"
+                 * this, to show just a line indicating
+                 * discrepancies.
+                 */
+                [[
+                          import com.redprairie.moca.MocaResults;
+                          import com.redprairie.moca.MocaContext;
+                          
+                          result = 0
+                          allow_discr_flg = 1
+                          
+                          while(res.next())
+                          {
+                              String command = " check damaged inventory " + 
+                                               "   where wh_id = '" + res.getString("wh_id") + "'" + 
+                                               "     and trknum = '" + res.getString("trknum") + "'" 
+                              
+                              resDmg = moca.executeCommand(command);
+                              
+                              resDmg.next();
+                              
+                              if (resDmg.getValue("dmg_flg") == 1)
+                              {
+                                  result = 1
+                                  allow_discr_flg = 1
+                                  break
+                              }
+                          }
+                      ]]
+                |
+                publish data
+                 where result = @result
+                   and allow_discr_flg = @allow_discr_flg
+            }
+        /* UNI-1078 - START: Katta, Dayakar: 29-Oct-2020
+         * The original logic should run for all the Inbound Shipments whether they are system generated or not
+         */
+        /* } */
+        /* UNI-1078 - END: Katta, Dayakar: 29-Oct-2020 */
+]]>
+
+
+</local-syntax>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+    This command will check all the invoice lines for a given trailer
+    to determine if there is a difference between the quantity (or catch quantity) identified
+    and the expected quantity (or expected catch quantity).  if any of these conditions exist the command 
+    will return a value of true otherwise false.
+    We recommend trknum(Master Receipt ID) instead of trailer ID because one trailer can 
+    have multiple Master Receipt ID. And the receice discrepancies should be for Master Receipt.
+  </p>
+]]>
+
+</remarks>
+
+<exception value="eOK">There are discrepancies for this trailer.</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">There are no discrepancies found.</exception>
+
+</documentation>
+
+</command>

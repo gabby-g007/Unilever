@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-ESCQUE,SERVER2,Usr-EscQue-ListPick,1,timer,process usr escque,$LESDIR/log/USR-ESCQUE.log,,0,,0,600,

@@ -1,0 +1,2 @@
+job_id,role_id,name,enabled,type,command,log_file,trace_level,overlap,schedule,start_delay,timer,grp_nam
+USR-ZERO-LINE-MISMATCH-ALERT,,EMS Alert for Zero Line Mismatch,0,timer,raise usr ems event for zero line mismatch,$LESDIR/log/USR-EMS-ZERO-LINE-MISMATCH.log,,0,,0,3600,usr_data

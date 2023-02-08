@@ -1,0 +1,58 @@
+<command>
+<name>list usr outbound trailer data</name>
+<description>List USR Outbound Trailer Data</description>
+<type>Local Syntax</type>
+<local-syntax>
+<![CDATA[
+
+publish data
+ where filterByClause = nvl(@filterByClause,
+                            [1 = 1])
+   and wh_id = nvl(@wh_id, @@wh_id)
+   and sortOrderClause = nvl(@sortOrderClause, 'appt.start_dte')
+|
+[/*#limit=@offset,@limit,true*/
+ select ship_struct_view.car_move_id,
+        ship_struct_view.ship_id,
+        adrmst.adrnam,
+        adrmst.adrcty,
+        ship_struct_view.carcod,
+        ship_struct_view.trlr_num,
+        appt.start_dte,
+        ship_struct_view.alcdte,
+        ship_struct_view.stgdte,
+        ship_struct_view.loddte,
+        ship_struct_view.arrdte,
+        ship_struct_view.close_dte,
+        ship_struct_view.dispatch_dte
+   from adrmst
+   join ship_struct_view
+     on adrmst.adr_id = ship_struct_view.rt_adr_id
+   join appt
+     on appt.appt_id = ship_struct_view.appt_id
+  where @filterByClause:raw
+    and @+ship_struct_view.wh_id
+    and @*
+  order by @sortOrderClause:raw] catch(-1403)
+
+]]>
+</local-syntax>
+<argument name="@*">Any field value</argument>
+
+<documentation>
+
+<remarks>
+<![CDATA[
+  <p>
+  This command will list the Outbound Trailer Data for the given duration by appointment start date.
+  This command was used in the server command operations in 8.2 but in 2020 since the users will not have access to the 
+  server command operations, this being converted to be a page builder.
+  </p>
+]]>
+</remarks>
+
+<exception value="eOK">Normal successful completion</exception>
+<exception value="eDB_NO_ROWS_AFFECTED">Specified daily transaction not found</exception>
+
+</documentation>
+</command>

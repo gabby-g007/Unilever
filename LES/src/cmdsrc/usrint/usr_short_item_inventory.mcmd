@@ -1,0 +1,195 @@
+<command>
+  <name>usr short item inventory</name>
+  <description>usr short item inventory</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+publish data 
+where filterByClause = nvl(@filterByClause, [1=1])
+|
+list warehouses
+ where wh_id <> 'WMD1'
+|
+[/*#limit=@offset,@limit,true*/
+ select locmst.wh_id,
+        aremst.bldg_id,
+        locmst.arecod,
+        locmst.pck_zone_id,
+        locmst.stoloc,
+        locmst.locsts,
+         invdtl.prtnum,
+         invdtl.invsts,
+         invdtl.lotnum,
+         invdtl.revlvl,
+         invdtl.orgcod,
+        locmst.useflg,
+        locmst.stoflg,
+        locmst.pckflg,
+        locmst.cipflg,
+        prtmst.dspuom,
+        prtmst.stkuom,
+         invdtl.ftpcod,
+         invdtl.hld_flg,
+        sum(invdtl.untqty) untqty
+   from invlod
+   join invsub invsub
+     on invlod.lodnum = invsub.lodnum
+   join invdtl
+     on invsub.subnum = invdtl.subnum
+   join locmst
+     on invlod.wh_id = locmst.wh_id
+    and invlod.stoloc = locmst.stoloc
+   join aremst
+     on locmst.wh_id = aremst.wh_id
+    and locmst.arecod = aremst.arecod
+   join loc_typ
+     on aremst.wh_id = loc_typ.wh_id
+    and aremst.arecod = loc_typ.loc_typ
+   join prtmst
+     on invdtl.prtnum = prtmst.prtnum
+    and prtmst.wh_id_tmpl = nvl(@wh_id, @@wh_id)
+  where @filterByClause:raw 
+    and invlod.wh_id = nvl(@wh_id, @@wh_id)
+    and loc_typ.fwiflg = 1
+    and invdtl.ship_line_id is null
+  group by locmst.wh_id,
+        aremst.bldg_id,
+        locmst.arecod,
+        locmst.pck_zone_id,
+        locmst.stoloc,
+        locmst.locsts,
+         invdtl.prtnum,
+         invdtl.prt_client_id,
+         invdtl.invsts,
+         invdtl.lotnum,
+         invdtl.revlvl,
+         invdtl.orgcod,
+        locmst.useflg,
+        locmst.stoflg,
+        locmst.pckflg,
+        locmst.cipflg,
+        prtmst.dspuom,
+        prtmst.stkuom,
+         invdtl.ftpcod,
+         invdtl.hld_flg] catch(@?)
+|
+if (@? = 0)
+{
+    [select pck_zone.pck_zone_id 
+       from alloc_search_path_view,
+            pck_zone
+      where alloc_search_path_view.pck_zone_id = pck_zone.pck_zone_id
+        and alloc_search_path_view.search_path_typ = 'PICK'
+        and pck_zone.pck_zone_id = @pck_zone_id
+        and rownum < 2
+     union
+     select pck_zone_id
+       from alloc_search_path_view
+      where search_path_typ = 'PICK'
+        and pck_zone_id = @pck_zone_id] catch(@?)
+    |
+    if (@? = 0)
+    {
+        publish data
+         where in_src_path = 1
+    }
+    else
+    {
+        publish data
+         where in_src_path = 0
+    }
+    |
+    /* pull the current and committed quantities for the location */
+    [select arecod,
+            stoloc,
+            prtnum,
+            prt_client_id,
+            wh_id,
+            untqty sum_untqty,
+            comqty,
+            old_expire_dte,
+            new_expire_dte,
+            datediff(day, old_expire_dte, sysdate)
+       from invsum
+      where wh_id = @wh_id
+        and prtnum = @prtnum
+        and stoloc = @stoloc
+        and arecod = @arecod] catch(@?)
+    |
+    if (@dspuom != '')
+    {
+        /* convert quantities to the display UOM */
+        [select decode(@dspuom, null, @untqty, @untqty / prtftp_dtl.untqty) dsp_untqty,
+                decode(@dspuom, null, @stkuom, @dspuom) dsp_untqty_uom,
+                decode(@dspuom, null, null, @stkuom, null, round(mod(@untqty, prtftp_dtl.untqty), 2)) rem_untqty,
+                @stkuom rem_untqty_uom,
+                decode(@dspuom, null, @comqty, @comqty / prtftp_dtl.untqty) dsp_comqty,
+                decode(@dspuom, null, @stkuom, @dspuom) dsp_comqty_uom,
+                decode(@dspuom, null, null, @stkuom, null, round(mod(@comqty, prtftp_dtl.untqty), 2)) rem_comqty,
+                @stkuom rem_comqty_uom
+           from prtftp_dtl
+          where prtftp_dtl.prtnum = @prtnum
+            and prtftp_dtl.ftpcod = @ftpcod
+            and prtftp_dtl.wh_id = @wh_id
+            and prtftp_dtl.uomcod = @dspuom]
+    }
+    else
+    {
+        publish data
+         where dsp_untqty = @untqty
+           and dsp_untqty_uom = @stkuom
+           and rem_untqty = 0
+           and rem_untqty_uom = @stkuom
+           and dsp_comqty = @comqty
+           and dsp_comqty_uom = @stkuom
+           and rem_comqty = 0
+           and rem_comqty_uom = @stkuom
+    }
+    |
+    publish data
+     where sum_untqty = nvl(@sum_untqty, 0)
+       and comqty = nvl(@comqty, 0)
+       and old_expire_dte = @old_expire_dte
+       and new_expire_dte = @new_expire_dte
+       and days_to_expire = @days_to_expire
+       and dsp_untqty = @dsp_untqty
+       and dsp_untqty_uom = @dsp_untqty_uom
+       and rem_untqty = nvl(@rem_untqty, 0)
+       and rem_untqty_uom = @rem_untqty_uom
+       and dsp_comqty = @dsp_comqty
+       and dsp_comqty_uom = @dsp_comqty_uom
+       and rem_comqty = nvl(@rem_comqty, 0)
+       and rem_comqty_uom = @rem_comqty_uom
+       and in_src_path = @in_src_path
+}
+|
+/* push the data to the DDA */
+publish data
+ where wh_id = @wh_id
+   and bldg_id = @bldg_id
+   and arecod = @arecod
+   and stoloc = @stoloc
+   and in_src_path = @in_src_path
+   and locsts = @locsts
+   and prtnum = @prtnum
+   and invsts = @invsts
+   and lotnum = @lotnum
+   and revlvl = @revlvl
+   and orgcod = @orgcod
+   and useflg = @useflg
+   and stoflg = @stoflg
+   and pckflg = @pckflg
+   and cipflg = @cipflg
+   and dspuom = @dspuom
+   and stkuom = @stkuom
+   and ftpcod = @ftpcod
+   and hld_flg = @hld_flg
+   and untqty = @untqty
+   and sum_untqty = @sum_untqty
+   and comqty = @comqty
+   and old_expire_dte = @old_expire_dte
+   and new_expire_dte = @new_expire_dte
+   and days_to_expire = @days_to_expire
+   ]]>
+   </local-syntax>
+</command>
