@@ -1,1 +1,1 @@
-#include $SALDIR/db/data/load/base/bootstraponly/adrmst.ctl 
+#include $SALDIR/db/data/load/base/bootstraponly/adrmst.ctl
