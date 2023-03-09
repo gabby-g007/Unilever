@@ -1,0 +1,14 @@
+<command>
+  <name>change trailer</name>
+  <description>Change Trailer</description>
+  <type>Local Syntax</type>
+  <local-syntax>
+<![CDATA[
+validate usr equipment size
+ where trlr_size = @trlr_size
+   and wh_id = nvl(@wh_id, @@wh_id)
+|
+^change trailer
+]]>
+</local-syntax>
+</command>
