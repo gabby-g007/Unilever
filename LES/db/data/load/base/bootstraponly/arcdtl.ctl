@@ -1,1 +1,1 @@
-#include $SALDIR/db/data/load/base/bootstraponly/arcdtl.ctl 
+#include $SALDIR/db/data/load/base/bootstraponly/arcdtl.ctl
