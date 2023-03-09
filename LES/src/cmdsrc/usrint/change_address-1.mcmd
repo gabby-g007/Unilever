@@ -25,4 +25,4 @@ if (@adrnam != '')
  where @*
 ]]>
 </local-syntax>
-</command>
+</command> 
