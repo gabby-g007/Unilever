@@ -302,4 +302,5 @@ to_number('@dty_stmp_trk_flg@'),
 to_number('@cstms_cst@'),
 '@cstms_cmmdty_cod@',
 to_number('@velzon_recalc_flg@'))]
+
 }
