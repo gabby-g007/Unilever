@@ -263,6 +263,6 @@ if (@stoloc is not null and @alctyp != 'REPLEN' and @invmov_typ != 'RPLN')
     must be used in conjunction with Debug Flag
 </argument>
 <argument name="sto_te_flg" datatype="boolean">
-    Storage Trailer Flag - When specified as 1
+    Storage Trailer Flag - When specified as 1 , then move the Inventory to the storage trailer .
 </argument>
 </command>
