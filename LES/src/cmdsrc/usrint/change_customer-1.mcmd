@@ -53,6 +53,7 @@ if (@? = 0)
 else
 {
     ^change customer
+     where @*
 }
 
 ]]>
