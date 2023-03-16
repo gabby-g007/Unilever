@@ -19,4 +19,4 @@ mset command on
    into actcod(actcod, actcod_typ, voc_cod, lms_flg, worktype_id, indflg, asgn_typ, disc_proc_id, ins_dt, last_upd_dt, ins_user_id, last_upd_user_id, rollup_uom)
  values ('CPCK', 'WORK', '', '1', 'CPCK', '0', 'O', '', sysdate, sysdate, '', '', '')] catch(@?);
 RUN_DDL
-mset command off
+mset command off 
