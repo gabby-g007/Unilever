@@ -1,5 +1,5 @@
 <command>
-  <name>change address </name>
+  <name>change address</name>
   <description>Change address data</description>
   <type>Local Syntax</type>
   <local-syntax>
@@ -22,7 +22,7 @@ if (@adrnam != '')
 }
 |
 ^change address
-
+ where @*
 ]]>
 </local-syntax>
 </command>

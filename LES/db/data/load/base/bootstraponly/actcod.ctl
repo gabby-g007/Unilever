@@ -5,5 +5,5 @@ publish data
    AND lngdsc = '@lngdsc@'
 |
 create activity code
- where @* catch(@?)  
+ where @* catch(@?)
     
