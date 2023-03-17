@@ -22,6 +22,7 @@ if (@adrnam != '')
 }
 |
 ^create address
+ where @*
 ]]>
 </local-syntax>
 </command>
