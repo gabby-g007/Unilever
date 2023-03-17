@@ -19,3 +19,4 @@ else
                       VALUES
                       ('@client_grp@', to_number('@u_version@'), to_date('@ins_dt@','YYYYMMDDHH24MISS'), to_date('@last_upd_dt@','YYYYMMDDHH24MISS'), '@ins_user_id@', '@last_upd_user_id@') ] 
 }
+
