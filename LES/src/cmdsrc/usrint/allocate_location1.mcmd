@@ -1,5 +1,5 @@
 <command>
-  <name>allocate location</name>
+  <name>allocate location NASA</name>
   <description>Allocate Location</description>
   <type>Local Syntax</type>
   <local-syntax>
