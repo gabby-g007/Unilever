@@ -1,4 +1,4 @@
-[ select count(*) row_count 
+[ select count(*) row_count  
     from ctry_mst 
    where ctry_name = '@ctry_name@' 
 ] 

@@ -1,10 +1,10 @@
 <command>
-  <name>create address</name>
-  <description>Create address data for test</description>
+  <name>change address </name>
+  <description>Change address data</description>
   <type>Local Syntax</type>
   <local-syntax>
 <![CDATA[
-/* This command has been created as a part of BOL & Packing list company name change - USR-UL-NAME-CHANGE CR to update default vc_adrnam value to the adrmst for the host_ext_id during order download */
+/* This command has been created as a part of BOL & Packing list company name change - USR-UL-NAME-CHANGE CR to update default vc_adrnam value to the adrmst for the host_ext_id during order download*/
 if (@adrnam != '')
 {
     list policies
@@ -21,8 +21,7 @@ if (@adrnam != '')
     }
 }
 |
-^create address
-where
+^change address
 ]]>
 </local-syntax>
 </command>
