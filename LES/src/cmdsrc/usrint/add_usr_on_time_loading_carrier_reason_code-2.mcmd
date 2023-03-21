@@ -1,5 +1,5 @@
 <command>
-  <name>add usr on time loading carrier move reason code</name>
+  <name>add usr on time loading carrier move reason </name>
   <description>Add carrier move note on time loading details</description>
   <type>Local Syntax</type>
   <local-syntax>
