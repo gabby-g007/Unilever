@@ -1,5 +1,5 @@
 <command>
-  <name>change customer Test</name>
+  <name>change customer</name>
   <description>change customer</description>
   <type>Local Syntax</type>
   <local-syntax>
