@@ -1,6 +1,7 @@
 [ select count(*) row_count
     from wh 
-   where wh_id = '@wh_id@' ] 
+   where wh_id = '@wh_id@'
+   ] 
    
   | 
   
