@@ -1,10 +1,8 @@
 [ select count(*) row_count
     from wh 
    where wh_id = '@wh_id@'
-   ] 
-   
-  | 
-  
+   ]  
+  |
   if (@row_count > 0) 
   { 
       [ update wh 
