@@ -1,7 +1,7 @@
 [ select count(*) row_count 
    from crncy_fmt 
   where crncy_fmt = '@crncy_fmt@' 
-] 
+]
 | 
 if (@row_count > 0) 
 {

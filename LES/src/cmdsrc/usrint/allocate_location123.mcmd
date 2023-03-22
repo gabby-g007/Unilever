@@ -1,5 +1,5 @@
 <command>
-  <name>allocate location test testing</name>
+  <name>allocate location</name>
   <description>Allocate Location</description>
   <type>Local Syntax</type>
   <local-syntax>
@@ -263,6 +263,6 @@ if (@stoloc is not null and @alctyp != 'REPLEN' and @invmov_typ != 'RPLN')
     must be used in conjunction with Debug Flag
 </argument>
 <argument name="sto_te_flg" datatype="boolean">
-    Storage Trailer Flag - When specified as 1 , then move the Inventory to the storage trailer .
+    Storage Trailer Flag - When specified as 1
 </argument>
 </command>
