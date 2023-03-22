@@ -1,6 +1,6 @@
 [ select count(*) row_count  
     from ctry_mst 
-   where ctry_name = '@ctry_name@' 
+   where ctry_name = '@ctry_name@'  
 ] 
 | 
 if (@row_count > 0) 
