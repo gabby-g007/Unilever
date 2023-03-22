@@ -1,5 +1,5 @@
 <command>
-<name>list picks</name>
+<name>list picks demo</name>
 <description>list picks</description>
 <type>Local Syntax</type>
 
