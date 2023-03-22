@@ -1,5 +1,5 @@
 <command>
-  <name>create trailer table testing</name>
+  <name>create trailer table</name>
   <description>Create Trailer</description>
   <type>Local Syntax</type>
   <local-syntax>
