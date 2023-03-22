@@ -1,4 +1,4 @@
-/* UNI-928 */
+/* UNI-928 */  
 publish data
  where actcod = '@actcod@'
    AND actcod_typ = '@actcod_typ@'
